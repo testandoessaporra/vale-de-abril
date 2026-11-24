@@ -23083,7 +23083,7 @@ cargaTeste(function(){cargaRelogio(function(pinta,agora){LOADW=1;var n=0;resetGa
 
   T('CEO 08/11 demo: menu avisa demonstracao em desenvolvimento',function(){
     eq($('demoAviso').textContent,'DEMONSTRAÇÃO · jogo em desenvolvimento');
-    eq($('demoPresente').textContent,'Presente para assinantes do Sistema 4P');
+    eq($('demoPresente').textContent,'Grátis pela Operação Concursos');
     tr($('menu').contains($('demoAviso'))&&$('menu').contains($('demoPresente')),'avisos fora do menu');
   });
   T('ROLAGEM: tela cheia cabe na grade nos quatro estados',function(){
