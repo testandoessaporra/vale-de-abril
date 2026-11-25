@@ -183,9 +183,10 @@ renderer.shadowMap.enabled=qT().shadow;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 /* CEO 24/11 "deixa a demo mais leve": o mapa de sombra e desenhado em quadros alternados (medido no PC: sombra 2,19 -> 1,09 ms por quadro, quadro 25,5 -> 23,3 ms).
    Carro do jogador acima de 8 m/s desenha todo quadro (a sombra dele atrasaria ~10 cm). ?sombra2=0 volta ao desenho em todo quadro. */
-var SOMBRA2=QS.get('sombra2')!=='0'&&!SELFTEST,SOMBRA2_Q=0;if(SOMBRA2)renderer.shadowMap.autoUpdate=false;
+var SOMBRA2=QS.get('sombra2')!=='0'&&!SELFTEST,SOMBRA2_Q=0;/* 25/11: durante a carga a sombra segue desenhada em todo quadro, senao as receitas do passe de sombra so nasciam no 1o quadro do jogo (4 receitas, ~0,3 s parado na entrada, medido no PC) */
 /* sol e mapa andam no mesmo quadro: mover o sol sem redesenhar o mapa faz a sombra nadar */
 function sombraQuadro(x,z){
+  if(SOMBRA2&&renderer.shadowMap.autoUpdate&&!LOADING)renderer.shadowMap.autoUpdate=false;
   if(SOMBRA2&&sun.shadow.map&&!(S.inCar&&Math.abs(C0.v)>8)&&!(SOMBRA2_Q^=1))return false;
   sunFollow(x,z);if(SOMBRA2)renderer.shadowMap.needsUpdate=true;return true;
 }
@@ -8016,6 +8017,8 @@ var PIPOCA_HD=null,PIPOCA_WAIT=[],PIPOCA_LOAD=false;
    Sem colisor (nunca prende jogador nem carro); bicho nunca entra em casa (caixas conferidas contra COL na prova).
    Modo leve (PS1/PS2): metade da quantidade, mesmo material simples. Montado no 1o quadro (o mundo ja esta pronto). */
 var VMB; /* ponytail: sem inicializador de proposito: vmTick so monta depois que o mundo existe */
+/* 25/11 travadinha do comeco: passaros, cachorro e gato nasciam no 1o quadro do jogo com receita de desenho propria (medido no PC do CEO); agora nascem durante a carga, antes do preparo */
+var VMB_CARGA=SELFTEST?0:setInterval(function(){if(typeof LOADING==='undefined')return;if(!LOADING||VMB){clearInterval(VMB_CARGA);return;}if(typeof POLES!=='undefined'&&POLES.length&&typeof S!=='undefined'&&S){clearInterval(VMB_CARGA);try{vmBuild();}catch(e){console.warn('vida miuda na carga',e);VMB=undefined;}}},400);
 var VM_GLSL='vec3 transformed=vec3(position);\n'+
  'if(aPt>.5&&aPt<1.5){transformed+=aWg*(1.-aSt.y);vec3 q=transformed-uA;float b=aSt.x*sign(q.x);transformed=uA+vec3(q.x*cos(b)-q.y*sin(b),q.x*sin(b)+q.y*cos(b),q.z);}\n'+
  'else if(aPt>1.5&&aPt<2.5){vec3 q=transformed-uH;float c=cos(aSt.z),s=sin(aSt.z);q=vec3(q.x,q.y*c-q.z*s,q.y*s+q.z*c);c=cos(aSt.w);s=sin(aSt.w);transformed=uH+vec3(q.x*c+q.z*s,q.y,-q.x*s+q.z*c);}\n'+
@@ -18919,7 +18922,7 @@ function prewarmGPU(force){ if(LOADING&&LOADGO)return; /* A entrada ja aquece se
   if(LOADING&&!force&&!FATX){if(!FAT.on)fatIni(true,true);return;} /* na carga o preparo vai em fatias */
   var state=[], mats=new Set(),tex=new Set(),target=renderer.getRenderTarget();
   function texture(t){if(Array.isArray(t)){t.forEach(texture);return;}if(t&&t.isTexture&&t.version>0&&t.image&&t.image.complete!==false&&!tex.has(t)){tex.add(t);renderer.initTexture(t);}}
-  var fr=function(){if(composer)composer.render(0);else renderer.render(scene,camera);};
+  var fr=function(){renderer.shadowMap.needsUpdate=true;/* 25/11: o preparo tambem desenha a sombra, mesmo com ela em quadros alternados */if(composer)composer.render(0);else renderer.render(scene,camera);};
   // Os carros de chegada ainda estão fora da cidade; suas cópias usam estes mesmos materiais e texturas.
   var chegadas=LOADING&&CHEGADA_MODELOS?Object.values(CHEGADA_MODELOS).filter(m=>!m.parent):[];
   try{
@@ -24198,6 +24201,9 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
   T('CEO 24/11 troca de grafico: preparo roda com o jogo pausado e a cortina avisa por escrito',function(){
     var ft=fatTick,on=FAT.on,l0=_last,n=0;try{fatTick=function(){n++;};FAT.on=true;pausaQuadro(5);eq(n,1,'na pausa o preparo nao roda: a parada volta para o meio do jogo (1,6 s medido no PC)');FAT.on=false;pausaQuadro(6);eq(n,1,'preparou sem pedido');}finally{fatTick=ft;FAT.on=on;_last=l0;}
     tr(/APLICANDO GR/.test(String(fatCortina)),'cortina sem aviso escrito');});
+  T('CEO 25/11 travadinha do comeco: carga e preparo desenham a sombra (receitas do passe de sombra nascem no loading)',function(){
+    tr(/renderer\.shadowMap\.needsUpdate=true/.test(String(prewarmGPU)),'preparo sem desenhar a sombra');tr(/autoUpdate&&!LOADING\)renderer\.shadowMap\.autoUpdate=false/.test(String(sombraQuadro)),'sombra alternada liga antes do fim da carga');
+    var s0=SOMBRA2,q0=SOMBRA2_Q,au=renderer.shadowMap.autoUpdate,ld=LOADING,nu=renderer.shadowMap.needsUpdate;try{SOMBRA2=true;renderer.shadowMap.autoUpdate=true;LOADING=true;sombraQuadro(1,1);eq(renderer.shadowMap.autoUpdate,true,'desligou a sombra de todo quadro durante a carga');LOADING=false;sombraQuadro(2,1);eq(renderer.shadowMap.autoUpdate,false,'nao alternou depois da carga');}finally{SOMBRA2=s0;SOMBRA2_Q=q0;renderer.shadowMap.autoUpdate=au;LOADING=ld;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
   T('sombra 06/11: sol encaixa no texel, sem flicker',function(){var tx=2*SHS/sun.shadow.mapSize.x;[[3.3,7.1],[41.7,-12.9],[-88.2,55.5]].forEach(function(p){sunFollow(p[0],p[1]);var a=sun.target.position.dot(SUNR)/tx,b=sun.target.position.dot(SUNU)/tx;tr(Math.abs(a-Math.round(a))<1e-3&&Math.abs(b-Math.round(b))<1e-3,'fora da grade');tr(Math.hypot(sun.target.position.x-p[0],sun.target.position.z-p[1])<tx*3+5,'longe do heroi');});sunFollow(P.x,P.z);});
   T('CENA LIVRE 11/11: veiculo em 5 pontos da cena sai da area e ator nao cruza veiculo',function(){
     fresh();exitCar(true);var c0={x:C0.x,z:C0.z,yaw:C0.yaw},mor=NPCBY.morador3,sv=mor&&cap2Save(mor);
