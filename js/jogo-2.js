@@ -10199,6 +10199,19 @@ function bandidoLiga(n){
   for(var i=0;i<n.m.children.length;i++)n.m.children[i].visible=false;
   n.m.add(s);n.m.userData.bandido=v;BANDIDO.n=n;bandidoPlay(n,'Idle_10',0);
 }
+/* 25/11: a copia do Fujão (clone, clipes, material do rosto) nasce na carga num suporte solto e fica em BANDIDO.pre;
+   no inicio da perseguicao bandidoLiga so pendura a copia pronta no NPC. ponytail: embrulha a funcao para nao mexer nas linhas que a camada da previa remenda. */
+var bandidoLigaCheia=bandidoLiga;
+function bandidoPre(){
+  if(BANDIDO.pre||BANDIDO.n||!BANDIDO.g||!THREE.SkeletonUtils)return BANDIDO.pre||null;
+  var h={m:new THREE.Group()};bandidoLigaCheia(h);BANDIDO.n=null;
+  var v=h.m.userData.bandido||null;if(v)h.m.remove(v.s);return BANDIDO.pre=v;
+}
+bandidoLiga=function(n){
+  var v=BANDIDO.pre;if(!v||n.m.userData.bandido)return bandidoLigaCheia(n);
+  BANDIDO.pre=null;for(var i=0;i<n.m.children.length;i++)n.m.children[i].visible=false;
+  n.m.add(v.s);n.m.userData.bandido=v;BANDIDO.n=n;bandidoPlay(n,'Idle_10',0);
+};
 function bandidoPlay(n,name,hold){
   var v=n&&n.m&&n.m.userData.bandido;if(!v)return;
   var a=v.a[name];if(!a)return;
@@ -18918,6 +18931,7 @@ function fatTick(){var t0=performance.now(),alvo=renderer.getRenderTarget(),o=nu
   if(FAT.i>=FAT.l.length){FAT.on=false;FAT.l=null;FAT.ms=performance.now()-FAT.t0;fatCortina(-1);if(FAT.pw){FAT.pw=false;FATX=true;try{prewarmGPU(FAT.f);}finally{FATX=false;}}}}
 /* CEO 25/11 luta: o que nascia no inicio da perseguicao e no 1o golpe nasce na carga: malha e texturas do Fujão (modelo entra na cena so durante o preparo) e a tela de efeito do golpe. */
 function lutaAquece(l){quizFxInit();$('quizfx').getContext('2d');if(BANDIDO.g&&!BANDIDO.g.scene.parent)l.push(BANDIDO.g.scene);
+  try{var bp=bandidoPre();if(bp&&!bp.s.parent)l.push(bp.s);}catch(e){console.warn('aquece fujao',e);}
   /* todo rosto HD ganha o rig na carga (antes so o Professor): a receita do rosto nao nasce mais na entrada. */
   NPCS.forEach(function(n){if(n.m&&n.m.userData.profMesh)rigLiga(n,false);});
   /* 25/11: o corpo Meshy do Seu Joao (camada da previa) ganhava modelo e rig no 1o quadro da abertura; liga aqui e entra no preparo. */
@@ -24224,7 +24238,9 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
     tr(/quizFxInit\(\)/.test(f),'tela de efeito do golpe nasce no 1o golpe');tr(/BANDIDO\.g\.scene/.test(f),'modelo do Fujão fora do preparo');
     tr(/profMesh\)rigLiga\(n,false\)/.test(f)&&/rigLiga\(RF_HEROI,true\)/.test(f),'rosto ganha o rig so na entrada');
     tr(/setColorAt\(0,q\.cores\[0\]\)/.test(String(sinaisTick)),'lentes da frota nascem sem cor por copia');
-    tr(BANDIDO.g,'modelo do Fujão ausente');['skinWeight','uv'].forEach(function(k){var corpo=null;BANDIDO.g.scene.traverse(function(o){if(o.isSkinnedMesh)corpo=o;});tr(!corpo.geometry.attributes[k].normalized,k+' convertido so na perseguicao');});});
+    tr(/bandidoPre\(\)/.test(f),'copia do Fujão nasce so na perseguicao');
+    tr(BANDIDO.g,'modelo do Fujão ausente');var b0=[BANDIDO.pre,BANDIDO.n];try{BANDIDO.pre=BANDIDO.n=null;var bm=bandidoPre();tr(bm&&bm.sm&&bm.rf&&bm.a.Running&&!bm.s.parent&&!BANDIDO.n,'copia do Fujão incompleta');
+      var hn={m:new THREE.Group()};bandidoLiga(hn);tr(hn.m.userData.bandido===bm&&bm.s.parent===hn.m&&!BANDIDO.pre,'perseguicao nao usou a copia pronta');}finally{BANDIDO.pre=b0[0];BANDIDO.n=b0[1];}['skinWeight','uv'].forEach(function(k){var corpo=null;BANDIDO.g.scene.traverse(function(o){if(o.isSkinnedMesh)corpo=o;});tr(!corpo.geometry.attributes[k].normalized,k+' convertido so na perseguicao');});});
   T('CEO 24/11 jogo vivo: reacao a arma, tiro e atropelo fala na escolta da Marlene; papo de fundo segue calado',function(){
     var a=[seqBusy,cenaOn,papoMudo];try{fresh();S.phase='play';seqBusy=cenaOn=function(){return false;};clearSubs();papoMudo=function(){return true;};
       tr(ruaOcupada()&&ruaOcupada(0),'papo de fundo falou por cima da escolta');tr(!ruaOcupada(1),'atropelo calado na escolta');tr(!ruaOcupada(2),'arma apontada calada na escolta');
