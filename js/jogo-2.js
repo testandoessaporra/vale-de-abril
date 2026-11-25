@@ -18920,6 +18920,8 @@ function fatTick(){var t0=performance.now(),alvo=renderer.getRenderTarget(),o=nu
 function lutaAquece(l){quizFxInit();$('quizfx').getContext('2d');if(BANDIDO.g&&!BANDIDO.g.scene.parent)l.push(BANDIDO.g.scene);
   /* todo rosto HD ganha o rig na carga (antes so o Professor): a receita do rosto nao nasce mais na entrada. */
   NPCS.forEach(function(n){if(n.m&&n.m.userData.profMesh)rigLiga(n,false);});
+  /* 25/11: o corpo Meshy do Seu Joao (camada da previa) ganhava modelo e rig no 1o quadro da abertura; liga aqui e entra no preparo. */
+  if(typeof npcMeshyLiga==='function')for(var id in NPCMESHY.arq)if(NPCBY[id]&&NPCBY[id].m)npcMeshyLiga(NPCBY[id]);
   /* o rosto do heroi em 3a pessoa (abertura, luta) tambem ganha o rig na carga. */
   try{if(!TP.m)tpCam(0);if(TP.m){RF_HEROI.m=TP.m;rigLiga(RF_HEROI,true);}}catch(e){console.warn('aquece heroi',e);}
   /* lentes da frota: a malha nascia no 1o quadro de jogo; nasce aqui e entra no preparo. */
