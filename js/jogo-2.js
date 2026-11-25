@@ -126,14 +126,30 @@ var SMALL=MOB||innerWidth<900;
 /* CEO 21h4x "serrilhando demais... deixa mais HD": celular nasce no 2 com resolucao alta (tela retina) e MSAA 4; chave nova vda_q2 zera rebaixamento velho */
 var QDEF=2,QL=QDEF; /* CEO 08/11 "4090 a 20 fps": nivel 3 (SAO) redesenhava a cidade 2x a mais: 2537 draws e 20,8 mi tris por quadro x 994 e 5,5 mi no nivel 2. Nivel 3 so com ?q=3 */
 (function(){var f=QS.get('q');if(f!=null&&f!==''){QL=Math.max(0,Math.min(3,+f|0));return;}try{var m=localStorage.getItem('vda_q2');if(m!=null)QL=Math.max(0,Math.min(QDEF,+m|0));}catch(e){}})();
-var QT=[{pr:1,sh:512,shadow:false,ms:2,bloom:false,grass:.4},{pr:1,sh:1024,shadow:true,ms:2,bloom:true,grass:.7},/* 09/11 perf: o 1 era igual ao 2 no computador (descer nao ganhava nada) */{pr:MOB?1.75:1.25,sh:1024,shadow:true,ms:4,bloom:true,grass:1},{pr:2,sh:2048,shadow:true,ms:4,bloom:true,grass:1}];
+var QT=[{pr:1,sh:512,shadow:false,ms:2,bloom:false,grass:.4},{pr:1,sh:1024,shadow:true,ms:2,bloom:true,grass:.7},/* 09/11 perf: o 1 era igual ao 2 no computador (descer nao ganhava nada) */{pr:MOB?1.75:1.25,sh:1024,shadow:true,ms:4,bloom:true,grass:1},{pr:2,sh:2048,shadow:true,ms:4,bloom:true,grass:1,sao:true}];
 if(MOB)QT=QT.map(function(t){return Object.assign({},t,{pr:1,sh:512,shadow:false,ms:0,bloom:false,grass:.25});});
 /* CEO 09/11 17h 'computador de batata rodando liso, nem que desative quase tudo': MODO BATATA abaixo do nivel 0. 1 = 75% da resolucao, 2 = 50%; sem sombra, sem brilho, sem MSAA, horizonte de celular (batSet). ?bat=1|2 forca; o aparelho lembra (vda_bat) */
 var QBAT=[null,{pr:.75,sh:512,shadow:false,ms:0,bloom:false,grass:.25},{pr:.5,sh:512,shadow:false,ms:0,bloom:false,grass:.035}],BAT=0,BAT0=0;
 /* CEO 09/11 17h40 'um batata supremo e um batata leve nas configuracoes, sem dois links': GFX = escolha na mao em OPCOES > Grafico (vda_gfx): 0 adaptativo (vigia decide), 1 leve, 2 supremo. Escolha na mao ou ?bat= trava o vigia */
 var GFX=0,MZC=false;
-(function(){var c=function(v){return Math.max(0,Math.min(2,+v|0));},f=QS.get('bat');if(f!=null&&f!==''){GFX=BAT=c(f);}else if(!QS.get('q')&&!SELFTEST){try{GFX=Math.max(0,Math.min(MOB?3:2,+localStorage.getItem('vda_gfx')|0));MZC=GFX===3;BAT=MZC?0:GFX||c(localStorage.getItem('vda_bat'));}catch(e){}}if(BAT)QL=0;BAT0=BAT;})();
-function qT(){return BAT?QBAT[BAT]:QT[QL];}
+/* === PRESETS PS1..PS5 PRO (portao-2211-presets.py, CEO 24/11 12h01) ===
+   GFX 0 Automatico, 1 PS2, 2 PS1, 3 Maximo (so celular), 4 PS3, 5 PS4, 6 PS5 Pro, 7 Personalizado.
+   PS5 Pro so na mao (Automatico nunca passa do PS4 ate o jogo rodar multi-nucleo).
+   Personalizado (QX) = base {b:BAT,q:QL} + itens t por cima da tabela; gravado em vda_gfxc. */
+var GFXP={1:{b:1,q:0},2:{b:2,q:0},3:{b:0,q:QDEF},4:{b:0,q:0},5:{b:0,q:2},6:{b:0,q:3}},GFXN=['AUTOMÁTICO','PS2','PS1','MÁXIMO','PS3','PS4','PS5 PRO','PERSONALIZADO'],QX=null,saoCria=null;
+function gfxLimpa(x){if(!x||typeof x!=='object'||!x.t||typeof x.t!=='object')return null;var b=+x.b,q=+x.q,t=x.t,n=function(v,a,z,d){v=+v;return v>=a&&v<=z?v:d;},um=function(v,l,d){return l.indexOf(+v)>=0?+v:d;};
+  if(!(b>=0&&b<=2)||!(q>=0&&q<=3))return null;
+  return {b:b|0,q:q|0,t:{pr:n(t.pr,.25,2,1),sh:um(t.sh,[512,1024,2048],1024),shadow:!!t.shadow,ms:um(t.ms,[0,2,4],0),bloom:!!t.bloom,sao:!!t.sao,grass:n(t.grass,0,1,.4),vis:um(t.vis,[0,1,2],2),npc:um(t.npc,[0,1,2],2)}};}
+function gfxLe(){var g=+localStorage.getItem('vda_gfx')|0,x=null;try{x=gfxLimpa(JSON.parse(localStorage.getItem('vda_gfxc')));}catch(e){}
+  if(g===3&&!MOB)g=5;if(g<0||g>7||g===7&&!x)g=0;return {g:g,x:x};}
+function gfxFraco(){var w=gpuFraca(GPUN);if(!w&&((navigator.deviceMemory||8)<=2||(navigator.hardwareConcurrency||8)<=2))w=1;if(!w&&MOB)w=1;return w;}
+/* Automatico: sem placa 2 -> PS1, fraca ou celular -> PS2, comum e forte -> PS4 */
+function gfxAuto(){var w=gfxFraco();return w>1?2:w?1:5;}
+/* === PRESETS fim === */
+(function(){var c=function(v){return Math.max(0,Math.min(2,+v|0));},f=QS.get('bat');if(f!=null&&f!==''){GFX=BAT=c(f);}else if(!QS.get('q')&&!SELFTEST){try{var g=gfxLe(),p;GFX=g.g;QX=g.x;MZC=GFX===3;p=GFX===7?QX:GFXP[GFX];if(p){BAT=p.b;QL=p.q;}else BAT=c(localStorage.getItem('vda_bat'));}catch(e){}}if(BAT)QL=0;BAT0=BAT;})();
+function qT(){var t=BAT?QBAT[BAT]:QT[QL];return GFX===7&&QX?Object.assign({},t,QX.t):t;}
+/* composer (MSAA, brilho, SAO, filtro final): niveis 1+ fora do batata; Personalizado liga quando pede algum desses */
+function qPost(){if(!BAT&&QL>0)return true;if(GFX!==7||!QX)return false;var t=QX.t;return !!(t.ms||t.bloom||t.sao);}
 /* placa fraca conhecida: 2 = desenho por software (sem placa), 1 = integrada/antiga */
 function gpuFraca(n){n=String(n||'');return /swiftshader|llvmpipe|software|basic render/i.test(n)?2:/intel[^,]*\b(hd|uhd) graphics|\bgma\b|mali-(4|t)|adreno \(tm\) ([2-4]\d\d|50\d|51\d)|powervr|videocore|radeon (hd|r[57]) /i.test(n)?1:0;}
 var PR=Math.min(window.devicePixelRatio||1,qT().pr);
@@ -146,15 +162,26 @@ try{
 }catch(e){$('nogl').classList.add('on');return;}
 var GPUN='';try{(function(){var g=renderer.getContext(),e=g.getExtension('WEBGL_debug_renderer_info');GPUN=e?String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)||''):'';})();}catch(e){}
 /* 1a vez no aparelho (sem ?q, ?bat nem escolha gravada): placa fraca ja nasce leve, sem esperar engasgar */
+/* CEO 24/11 ao vivo (RTX 4090 travando segundos): placa de mesa forte nasce no maximo, esquece descida gravada e o vigia de fps nao troca nivel em jogo */
+function gpuForte(n){return /\b(geforce )?rtx\s*(a\d{3,4}|\d{4})|radeon (rx|pro) ?(6|7|9)\d{3}/i.test(String(n||''));}
+(function(){if(SELFTEST||QS.get('q')||QS.get('bat')||GFX||!gpuForte(GPUN))return;try{localStorage.removeItem('vda_q2');localStorage.removeItem('vda_bat');}catch(e){}QL=QDEF;BAT=BAT0=0;PR=Math.min(window.devicePixelRatio||1,qT().pr);})();
 (function(){if(SELFTEST||QS.get('q')||QS.get('bat')||GFX)return;try{if(localStorage.getItem('vda_q2')!=null||localStorage.getItem('vda_bat')!=null)return;}catch(e){}
-  var w=gpuFraca(GPUN);if(!w&&((navigator.hardwareConcurrency||8)<=2||(navigator.deviceMemory||8)<=2))w=1;if(!w&&MOB)w=1;/* CEO 09/11 18h35 'o sucesso de hoje depende de funcionar no celular no modo potato': celular sempre nasce batata leve; quem quiser mais troca no botao GRAFICO */if(!w)return;
-  QL=0;if(w>1)BAT=2;else if(MOB)BAT=1;BAT0=BAT;PR=Math.min(window.devicePixelRatio||1,qT().pr);})();
+  var w=gfxFraco();/* CEO 09/11 18h35 'o sucesso de hoje depende de funcionar no celular no modo potato': celular sempre nasce batata leve; quem quiser mais troca no botao GRAFICO */if(!w)return;
+  QL=0;BAT=BAT0=w>1?2:1;PR=Math.min(window.devicePixelRatio||1,qT().pr);})();
 renderer.setPixelRatio(PR);
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=0.92;
 renderer.shadowMap.enabled=qT().shadow;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+/* CEO 24/11 "deixa a demo mais leve": o mapa de sombra e desenhado em quadros alternados (medido no PC: sombra 2,19 -> 1,09 ms por quadro, quadro 25,5 -> 23,3 ms).
+   Carro do jogador acima de 8 m/s desenha todo quadro (a sombra dele atrasaria ~10 cm). ?sombra2=0 volta ao desenho em todo quadro. */
+var SOMBRA2=QS.get('sombra2')!=='0'&&!SELFTEST,SOMBRA2_Q=0;if(SOMBRA2)renderer.shadowMap.autoUpdate=false;
+/* sol e mapa andam no mesmo quadro: mover o sol sem redesenhar o mapa faz a sombra nadar */
+function sombraQuadro(x,z){
+  if(SOMBRA2&&sun.shadow.map&&!(S.inCar&&Math.abs(C0.v)>8)&&!(SOMBRA2_Q^=1))return false;
+  sunFollow(x,z);if(SOMBRA2)renderer.shadowMap.needsUpdate=true;return true;
+}
 renderer.setClearColor(0x10081c,1);
 
 var scene=new THREE.Scene();DBGW.__S=scene;/* debug: probe de QA (Playwright) */
@@ -383,7 +410,7 @@ var FinalShader={
   '}'].join('\n')
 };
 function initPost(){
-  if(MOB||SELFTEST||QS.get('nopost')==='1'||BAT||composer)return; /* logica em software; efeitos sao conferidos nas provas visuais com GPU. */
+  if(MOB||SELFTEST||QS.get('nopost')==='1'||BAT&&!qPost()||composer)return; /* logica em software; efeitos sao conferidos nas provas visuais com GPU. */
   try{
     var isGL2=renderer.capabilities.isWebGL2;
     var type=THREE.UnsignedByteType;
@@ -395,9 +422,9 @@ function initPost(){
     else rt=new THREE.WebGLRenderTarget(w,h,opts);
     composer=new THREE.EffectComposer(renderer,rt);
     composer.addPass(new THREE.RenderPass(scene,camera));
-    if(QL>=3&&THREE.SAOPass&&QS.get('nosao')!=='1'){try{var sao=saoPass=new THREE.SAOPass(scene,camera,false,true);sao.params.saoBias=.5;sao.params.saoIntensity=.012;sao.params.saoScale=14;sao.params.saoKernelRadius=22;sao.params.saoBlur=true;composer.addPass(sao);
+    saoCria=function(){if(saoPass||!composer||!THREE.SAOPass||QS.get('nosao')==='1')return;try{var sao=saoPass=new THREE.SAOPass(scene,camera,false,false);sao.params.saoBias=.5;sao.params.saoIntensity=.012;sao.params.saoScale=14;sao.params.saoKernelRadius=22;sao.params.saoBlur=true;composer.insertPass(sao,1);
       /* SAO desenha sprite como quadrado (overrideMaterial); quem esta em NOAO some so nessa etapa */
-      var _sr=sao.render,_ns=0;sao.render=function(){if(performance.now()>_ns){_ns=performance.now()+3000;noaoScan();}NOAO.forEach(function(o){o.userData.v=o.visible;o.visible=false;});_sr.apply(this,arguments);NOAO.forEach(function(o){o.visible=o.userData.v;});};}catch(e){console.warn('sao off',e);}}
+      var _sr=sao.render,_ns=0;sao.render=function(){if(performance.now()>_ns){_ns=performance.now()+3000;noaoScan();}NOAO.forEach(function(o){o.userData.v=o.visible;o.visible=false;});/* CEO 24/11 PS5 Pro 90 fps: a cena com luz (beauty) nao entra na saida padrao; sombra e matrizes ja sairam neste quadro */var rr=renderer.render,au=scene.autoUpdate,su=renderer.shadowMap.autoUpdate;scene.autoUpdate=false;renderer.shadowMap.autoUpdate=false;renderer.render=function(){if(sao.params.output===0&&renderer.getRenderTarget()===sao.beautyRenderTarget)return;return rr.apply(this,arguments);};try{_sr.apply(this,arguments);}finally{renderer.render=rr;scene.autoUpdate=au;renderer.shadowMap.autoUpdate=su;NOAO.forEach(function(o){o.visible=o.userData.v;});}};}catch(e){console.warn('sao off',e);saoPass=null;}};if(qT().sao)saoCria();
     bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(w,h),0.5,0.7,0.82);
     bloomPass.enabled=qT().bloom;composer.addPass(bloomPass);
     finalPass=new THREE.ShaderPass(FinalShader);
@@ -417,13 +444,14 @@ window.addEventListener('resize',onResize);
 /* troca de nivel em jogo: so o que nao exige reconstruir o mundo (resolucao, sombra, MSAA, SAO, bloom, capim) */
 function applyQ(q,adia){
   QL=q;document.body.dataset.hudLow=BAT||q===0?'1':'0';var t=qT();PR=Math.min(window.devicePixelRatio||1,t.pr);
-  if(!composer&&!BAT&&q>0)initPost();
+  if(!composer&&qPost())initPost();
   if(sun.shadow.mapSize.x!==t.sh){sun.shadow.mapSize.set(t.sh,t.sh);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
   /* CEO 08/11 'lisinho': ligar/desligar sombra recompila todo shader (engasgo); jogando, adia pra proxima pausa/cena/fade */
   if(adia&&renderer.shadowMap.enabled!==t.shadow)QM.pend=q;
   else if(renderer.shadowMap.enabled!==t.shadow){renderer.shadowMap.enabled=t.shadow;scene.traverse(function(m){if(m.material)[].concat(m.material).forEach(function(k){k.needsUpdate=true;});});}
   if(composer)[composer.renderTarget1,composer.renderTarget2].forEach(function(r){if(r&&r.isWebGLMultisampleRenderTarget&&r.samples!==t.ms){r.samples=t.ms;r.dispose();}});
-  if(saoPass)saoPass.enabled=!BAT&&q>=3;if(bloomPass)bloomPass.enabled=t.bloom;
+  var po=qPost();if(po&&t.sao&&!saoPass&&saoCria){if(adia)QM.pend=q;else saoCria();}
+  if(saoPass){var so=po&&!!t.sao;if(adia&&so&&!saoPass.enabled)QM.pend=q;else saoPass.enabled=so;}if(bloomPass){if(adia&&t.bloom&&!bloomPass.enabled)QM.pend=q;else bloomPass.enabled=!!t.bloom;}
   if(CAPIM){CAPIM.userData.cap=Math.floor(CAPIM.userData.n*t.grass);capimTick(true);}
   onResize();
   var _pw=false;if(typeof SUP!=='undefined'&&SUP&&superficieSync(adia)){if(SUP.atlas)renderer.initTexture(SUP.atlas);_pw=SUP.on||!S||S.phase!=='play';}
@@ -438,7 +466,9 @@ function batSet(n,adia){var k=batSet.k||(batSet.k={far:camera.far,fog:scene.fog.
   BAT=n;if(n)QL=0;
   camera.far=n?Math.min(k.far,n>1?200:220):k.far;camera.updateProjectionMatrix();scene.fog.density=n?Math.max(k.fog,n>1?.0052:.0042):k.fog;
   NPC_L1=k.l1;NPC_L2=n?Math.min(k.l2,n>1?45:65):k.l2;CAPIM_R=n?Math.min(k.cr,25):k.cr;VEG_MAX=n?(n>1?80:110):0;_vegK.x=_capK.x=1e9;
-  skyMesh.scale.setScalar(n||MOB?.18:1);if(backMesh){var e=n||MOB?.2:1;backMesh.scale.setScalar(e);backMesh.userData.dy=backMesh.userData.dy0*e;}
+  var tx=GFX===7&&QX?QX.t:null,enc=tx?MOB||tx.vis<2:n||MOB;/* ponytail: 200/400 m e neblina .0052/.0035 calibrados a olho; ajustar aqui */
+  if(tx){camera.far=Math.min(k.far,[200,400,1e5][tx.vis]);camera.updateProjectionMatrix();scene.fog.density=[Math.max(k.fog,.0052),Math.max(k.fog,.0035),k.fog][tx.vis];NPC_L2=Math.min(k.l2,[45,65,1e5][tx.npc]);}
+  skyMesh.scale.setScalar(enc?.18:1);if(backMesh){var e=enc?.2:1;backMesh.scale.setScalar(e);backMesh.userData.dy=backMesh.userData.dy0*e;}
   /* cada luz pontual custa uma conta de brilho por pixel na tela inteira (10 luzes = 10 contas): batata fica so com sol, ceu e a lanterna do bueiro; no 2 sai tambem o reflexo do ceu */
   scene.traverse(function(o){if(o.userData.vidroFrio)o.material=o.userData.vidroFrio[n?1:0];if(o.userData.soNoPrincipal)o.visible=!n;if(!(o.isPointLight||o.isSpotLight&&o!==LANT.luz))return;if(n){if(o.userData.batV==null)o.userData.batV=o.visible;o.visible=false;}else if(o.userData.batV!=null){o.visible=o.userData.batV;o.userData.batV=null;}});
   if(k.env===undefined)k.env=scene.environment;scene.environment=n>1?null:k.env;
@@ -446,9 +476,18 @@ function batSet(n,adia){var k=batSet.k||(batSet.k={far:camera.far,fog:scene.fog.
   applyQ(QL,adia);vegTick(true);telhadoLutaNivel(n);}
 var QM={w:0,t:0,f:0,r:0,mw:0,mt:0,mf:0,mr:0};
 /* adaptativo limpa o que o aparelho lembrava e devolve a qualidade cheia: o vigia desce de novo se precisar */
-function gfxSet(n){GFX=n;try{if(n)localStorage.setItem('vda_gfx',String(n));else['vda_gfx','vda_bat','vda_q2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}
-  QM.pend=null;QM.w=QM.t=QM.f=QM.r=QM.mw=QM.mt=QM.mf=QM.mr=0;if(!n||n===3)QL=QDEF;MZC=n===3;batSet(n%3);if(MZC)mzCarrega();var o=$('optGfx');if(o)o.value=n;gfxRotulo();}
-function gfxRotulo(){var b=$('mGfx');if(b)b.firstChild.nodeValue='GRÁFICO: '+['AUTOMÁTICO','PS2','PS1','MÁXIMO'][GFX];}
+function gfxSet(n,agora){n=+n|0;if(n===3&&!MOB)n=5;if(n<0||n>7)n=0;if(n===7&&!QX)QX=gfxFoto();GFX=n;
+  try{if(n){localStorage.setItem('vda_gfx',String(n));if(n===7)localStorage.setItem('vda_gfxc',JSON.stringify(QX));}else['vda_gfx','vda_bat','vda_q2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}
+  QM.pend=QM.pb=null;QM.w=QM.t=QM.f=QM.r=QM.mw=QM.mt=QM.mf=QM.mr=0;var p=n===7?QX:GFXP[n]||GFXP[gfxAuto()];QL=p.q;MZC=n===3;
+  /* jogando: sombra, SAO, brilho e superficie esperam a pausa (QM.pend); agora=true so para quem precisa na hora */
+  batSet(p.b,!agora&&!!S&&S.phase==='play');if(MZC)mzCarrega();gfxUI();}
+function gfxRotulo(){var b=$('mGfx');if(b)b.firstChild.nodeValue='GRÁFICO: '+GFXN[GFX];}
+/* fotografia do que esta na tela, base do Personalizado */
+function gfxFoto(){var t=Object.assign({sao:false},qT());t.sao=!!t.sao&&qPost();if(t.vis==null)t.vis=BAT||MOB?0:2;if(t.npc==null)t.npc=BAT>1?0:BAT?1:2;return gfxLimpa({b:BAT,q:QL,t:t});}
+/* item avulso do menu avancado: vira Personalizado com o resto igual ao que estava */
+function gfxItem(k,v){var x=gfxFoto();x.t[k]=v;if(k==='sh'){x.t.shadow=v>0;x.t.sh=v||512;}QX=gfxLimpa(x);gfxSet(7);}
+function gfxUI(){var o=$('optGfx');if(o)o.value=GFX;var t=gfxFoto().t,v={pr:t.pr,sh:t.shadow?t.sh:0,ms:t.ms,bloom:t.bloom?1:0,sao:t.sao?1:0,grass:t.grass,vis:t.vis,npc:t.npc};
+  [].forEach.call(document.querySelectorAll('#optGfxAv select'),function(s){var x=+v[s.dataset.gx],m=null;[].forEach.call(s.options,function(op){if(!m||Math.abs(op.value-x)<Math.abs(m.value-x))m=op;});if(m)s.value=m.value;});gfxRotulo();}
 /* CEO 16/11 (pu9) 'eu clico ali no grafico, ele ja troca; eu queria clicar para ver as opcoes': o clique de verdade ABRE a lista (mesmas opcoes do seletor de OPCOES) e so a escolha troca. O onclick antigo fica intacto para o teste automatico. */
 (function(){var b=document.getElementById('mGfx');if(!b)return;var d=document.createElement('div');d.id='mGfxOp';d.hidden=true;b.parentNode.insertBefore(d,b.nextSibling);
 function monta(){var o=document.getElementById('optGfx');d.innerHTML='';if(!o)return;for(var i=0;i<o.options.length;i++)(function(op){var x=document.createElement('button');x.type='button';x.textContent=(+op.value===GFX?'\u25b8 ':'')+op.text;x.style.cssText='font-size:.72em;padding:.25em 0 .25em 1.4em;display:block';x.onclick=function(){gfxSet(+op.value);d.hidden=true;};d.appendChild(x);})(o.options[i]);}
@@ -469,19 +508,22 @@ function mzCapim(){var m=MOB,old=CAPIM;try{MOB=false;buildCapim();}catch(x){ERRS
 function mzCarrega(){/* A grama canonica ja nasce em todo aparelho. */}
 
 function pcForte(){return !MOB&&/RTX|Radeon RX|Apple M/i.test(typeof GPUN==='string'?GPUN:'');}function qDesce(fps){if(pcForte())return false;var dur=fps<26,mole=!dur&&!MOB&&fps<45&&!(fps>28.5&&fps<31.5);QM.r=mole?QM.r+1:0;if(!dur&&QM.r<2)return false;QM.r=0;
-  if(QL>0&&!MOB)applyQ(fps<20?0:QL-1,fps>=20);else if(BAT<2&&(dur||BAT<1&&fps<35))batSet(BAT+1,fps>=20);else return false;return true;}
+  var q=QM.pend!=null?QM.pend:QL,b=QM.pb!=null?QM.pb:BAT,aq=null,ab=null;if(q>0&&!b&&!MOB)aq=fps<20?0:q-1;else if(b<2&&(dur||b<1&&fps<35))ab=b+1;else return false;
+  /* CEO 24/11 trava com muito NPC: jogando, so a resolucao cai na hora (nao recompila); qualidade e batata esperam a pausa */
+  if(S&&S.phase==='play'&&!cenaOn()&&!S.pazFade){if(aq!=null)QM.pend=aq;else{QM.pb=ab;if(QM.pend==null)QM.pend=QL;}var t=ab!=null?QBAT[ab]:QT[aq];PR=Math.min(PR,window.devicePixelRatio||1,t.pr);onResize();return true;}
+  if(aq!=null)applyQ(aq);else batSet(ab);return true;}
 function qWatch(rdt){
   if(typeof SUP!=='undefined'&&SUP&&SUP.limpa&&S&&S.phase!=='play')superficieSync();
-  if(QM.pend!=null&&S&&(S.phase!=='play'||cenaOn()||S.pazFade||(QM.pt=(QM.pt||0)+rdt)>45)){var pq=QM.pend;QM.pend=null;QM.pt=0;applyQ(pq);}
+  if(QM.pend!=null&&S&&(S.phase!=='play'||cenaOn()||S.pazFade||pausado())){/* CEO 24/11: troca pesada so na pausa, cena ou fade; nunca no meio do jogo */var pq=QM.pend,pb=QM.pb;QM.pend=QM.pb=null;QM.pt=0;if(pb!=null)batSet(pb);else applyQ(pq);}
   if(GFX===3&&!SELFTEST)mzVigia(rdt);
-  if(SELFTEST||GFX||QS.get('q')||!S||S.phase!=='play'||document.hidden||rdt>.5){QM.t=QM.f=0;return;}
+  if(SELFTEST||GFX||QS.get('q')||gpuForte(GPUN)||!S||S.phase!=='play'||document.hidden||rdt>.5){QM.t=QM.f=0;return;}
   if(QM.w<2){QM.w+=rdt;return;}
   QM.t+=rdt;QM.f++;if(QM.t<3)return;
   var fps=QM.f/QM.t;QM.t=QM.f=0;
   /* CEO 09/11 17h 'batata liso, maximo de fps': computador desce abaixo de 45 fps em 2 janelas seguidas (30 cravado = tela travada em 30, descer nao adianta); abaixo de 26 desce na hora (celular so essa regra).
      Abaixo de 20 nao adia a troca de sombra (um engasgo vale mais que 45 s de slide). No fim da escada entra o modo batata (1 abaixo de 35, 2 abaixo de 26) */
   if(!qDesce(fps))return;
-  QM.w=1;try{localStorage.setItem('vda_q2',String(QL));localStorage.setItem('vda_bat',String(BAT));}catch(e){}
+  QM.w=1;try{localStorage.setItem('vda_q2',String(QM.pend!=null?QM.pend:QL));localStorage.setItem('vda_bat',String(QM.pb!=null?QM.pb:BAT));}catch(e){}
 }
 window.addEventListener('orientationchange',function(){setTimeout(onResize,250);});
 initPost();onResize();
@@ -506,7 +548,7 @@ function render(dt,time){
   var fcLight=S.fcCena&&S.fcCena.fixa?[sun.intensity,hemi.intensity]:null;
   if(fcLight){sun.intensity=Math.max(.65,sun.intensity);hemi.intensity=Math.max(.95,hemi.intensity);} // Same lights, readable faces at the quest's night hour.
   renderer.info.autoReset=false;renderer.info.reset(); // Count the whole frame, including shadows and post processing.
-  if(FAT&&FAT.on)fatTick();else if(S.phase!=='ui'||!$('gojor').classList.contains('on')){if(composer&&!BAT&&QL>0)composer.render(dt);else renderer.render(scene,camera);}
+  if(FAT&&FAT.on)fatTick();else if(S.phase!=='ui'||!$('gojor').classList.contains('on')){if(composer&&qPost())composer.render(dt);else renderer.render(scene,camera);}
   if(fcLight){sun.intensity=fcLight[0];hemi.intensity=fcLight[1];}
   if(FPSON){FPSN++;var tn=performance.now();if(tn-FPST>1000){FPSE.textContent=Math.round(FPSN*1000/(tn-FPST))+' fps | draws '+renderer.info.render.calls+' | tris '+renderer.info.render.triangles+' | q'+QL;FPSN=0;FPST=tn;}}
 }
@@ -661,7 +703,7 @@ var SUPERFICIES={
 };
 var SUP={cache:new Map(),materiais:[],atlas:null,uAtlas:{value:null},on:false,ordem:Object.keys(SUPERFICIES),geracaoMs:0,geometrias:[],pronto:false,falhas:0};
 function superficieSuporte(r){r=r||renderer;return r.capabilities.isWebGL2||!!r.extensions.has('EXT_shader_texture_lod');}
-function superficieMaximo(){return !MOB&&!BAT&&(GFX===0||GFX===3)&&QL>=2&&superficieSuporte();}
+function superficieMaximo(){return !MOB&&!BAT&&(GFX===0||GFX===3||GFX>=5)&&QL>=2&&superficieSuporte();}
 function superficieMapas(tipo,semente,tam){
  if(!superficieMaximo())return null;
  var f=SUPERFICIES[tipo];if(!f||!Number.isInteger(tam)||tam<8||tam>512||!Number.isFinite(semente))throw new Error('Superficie invalida');
@@ -10284,6 +10326,8 @@ npcMeshyLoad();
 /* NPC-MESHY-FIM */
 
 
+var _glFr=new THREE.Frustum(),_glFrM=new THREE.Matrix4(),_glFrS=new THREE.Sphere(new THREE.Vector3(),1.2),_glFrQ=-1;
+function glNaVista(n){if(_glFrQ!==S.time){_glFrQ=S.time;camera.updateMatrixWorld();_glFr.setFromProjectionMatrix(_glFrM.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}_glFrS.center.set(n.m.position.x,n.m.position.y+.9,n.m.position.z);return _glFr.intersectsSphere(_glFrS);}
 function glTick(dt){motoristaVincula();if(!EST.on)motoristaSolta();bandidoTick(dt);
   var dirige=motoristaAtivo(),bracos=P1.userData.bracosCabine;
   var carroPose=S.uno?PCARS[UNO_SPOT].m:CAR;
@@ -10299,13 +10343,16 @@ function glTick(dt){motoristaVincula();if(!EST.on)motoristaSolta();bandidoTick(d
     if(S.fcCena&&n===S.fcCena.n)continue;
     if(n.down&&!n.cap2Body){if(G.cur!=='Death')glPlay(u,'Death');n.m.rotation.x=0;n.m.position.y=n.y;}
     else if(!n.down&&G.cur==='Death')glPlay(u,'Idle');
-    if(!n.always&&!(n.talk>S.time)&&!(n.listenUntil>S.time)&&dist2(n.m.position.x,n.m.position.z,cp.x,cp.z)>70)continue;
+    var gd=n.always||n.talk>S.time||n.listenUntil>S.time?0:dist2(n.m.position.x,n.m.position.z,cp.x,cp.z);if(gd>70)continue;
+    /* LOD 24/11 (CEO ao vivo: 100 fps na 4090, gargalo no JS): longe (>25 m) ou fora da camera anima 1 quadro a cada 3, com o tempo somado.
+       ponytail: passo fixo 3; por distancia continua so se a medida pedir */
+    var gdt=dt;if(gd>25||gd&&!glNaVista(n)){G.lodDt=(G.lodDt||0)+dt;G.lodK=((G.lodK||0)+1)%3;if(G.lodK)continue;gdt=G.lodDt;G.lodDt=0;}else if(G.lodDt){gdt+=G.lodDt;G.lodDt=0;}
     if(u.fc&&u.fc.head){u.fc.head.rotation.y-=(u.fc.lastTurn||0)+(n.baileHeadLast||0);n.baileHeadLast=0;}
     if(G.scenePose)G.scenePose.forEach(function(p){p.b.quaternion.copy(p.q);});if(G.gestoOn){G.gestoOn=false;G.gestoPose.forEach(function(p){p.b.quaternion.copy(p.q);});}/* gesto-fala: devolve a pose do mixer */
     if(G.profPose)G.profPose.forEach(function(p){p.b.quaternion.copy(p.q);});
     if(u.cfg.velha)G.old.forEach(function(p){p.b.quaternion.copy(p.q);});
     if(n.id==='marlene'&&S.marlene&&S.marlene.active&&['escolta','volta'].indexOf(S.marlene.stage)>=0)glMode(u,n.questSpeed||0,n.questSpeed>.3?'walk':'idle',true);
-    sbxCoverRestore(G);glDanca(n,G,dt,true);G.mx.update(dt);glDanca(n,G,dt,false);sbxCoverPose(n,G,dt);
+    sbxCoverRestore(G);glDanca(n,G,gdt,true);G.mx.update(gdt);glDanca(n,G,gdt,false);sbxCoverPose(n,G,dt);
     if(G.solaPasso){
       if(G.apoioPasso){G.s.position.y+=G.apoioPasso;G.apoioPasso=0;}
       if((G.cur==='Walk'||G.cur==='Run')&&!n.down&&!n.sit){var sola=u.profMesh,baixo=Infinity;G.s.updateWorldMatrix(true,true);sola.skeleton.update();
@@ -10444,7 +10491,8 @@ function tfFree(n,x,z,yaw,gap,world){var h=n.bike?1:(n.len||4.4)/2,w=n.bike?.5:t
  /* ponytail: caixa envolvente conservadora antes do SAT existente; mesma colisao. */
  var sn=Math.abs(Math.sin(yaw)),cs=Math.abs(Math.cos(yaw)),tx=sn*h+cs*w+.06,tz=cs*h+sn*w+.06;
  var x0=x-tx,x1=x+tx,z0=z-tz,z1=z+tz;
- for(i=0;i<COL.length;i++){o=COL[i];if(x1<=o[0]||x0>=o[2]||z1<=o[1]||z0>=o[3])continue;
+ var colCaixas=colIndice(COL,x0,z0,x1,z1);
+ for(i=0;i<colCaixas.length;i++){o=colCaixas[i];if(x1<=o[0]||x0>=o[2]||z1<=o[1]||z0>=o[3])continue;
  if(o.ativo===false||o.soPe||o.minY>y+1.8||o.maxY<y+.1||o[4]!=null&&o[4]<.25)continue;
  if(tfOverlap(x,z,yaw,w,h,(o[0]+o[2])/2,(o[1]+o[3])/2,0,(o[2]-o[0])/2,(o[3]-o[1])/2,.06))return false;}
  var mp=mpObj(),ca=mp&&mp.userData.pg&&mp.userData.pg.userData.cancela;
@@ -14941,7 +14989,33 @@ function enterCar(){
 /* parkour leve (ordem CEO 03/11): pulo, salto por cima do que e baixo (cerca, carro, carrinho), escalada de muro ate 2,4 m.
    COL[i][4] = topo visual acima do chao local, inclusive paredes altas. Encadear em 2,5 s = FLUXO xN (mais velocidade e XP). */
 var GRAV=14,JUMP_V=5.2,SALTO_PE_V=3.9,VAULT_MAX=1.25,VAULT_AUTO=.6,/* CEO 08/11: salto automatico so no que e baixo; murinho de casa (>60 cm) tem resistencia: para nele e o pulo SOBE em cima */MANTLE_MAX=2.4,CLIMB_MAX=12,FLOW_WIN=2.5; /* CEO 05/11: tudo que parece pisavel se escala; acima de 2,4 m sobe devagar */
-function supportH(x,z,alt){var h=0,list=colJogador();if(alt===undefined)alt=P.alt;for(var i=0;i<list.length;i++){var b=list[i];
+var colQuadro=0,colGrades=new WeakMap();
+function colIndice(list,x0,z0,x1,z1){
+  var g=colGrades.get(list),i,b,s=0,mudou=!g;
+  if(!g||g.quadro!==colQuadro||g.tamanho!==list.length){
+    for(i=0;i<list.length;i++){b=list[i];s+=b[0]+b[1]+b[2]+b[3]+(b[4]||0);
+      if(g){var ant=g.caixas[i];if(!ant||ant[0]!==b||ant[1]!==b[0]||ant[2]!==b[1]||ant[3]!==b[2]||ant[4]!==b[3]||ant[5]!==b[4])mudou=true;}}
+    if(mudou||g.tamanho!==list.length||g.assinatura!==s){
+      g={tamanho:list.length,assinatura:s,celulas:new Map(),caixas:[]};
+      for(i=0;i<list.length;i++){b=list[i];
+        g.caixas.push([b,b[0],b[1],b[2],b[3],b[4]]);
+        for(var cx=Math.floor((b[0]-.2)/8);cx<=Math.floor((b[2]+.2)/8);cx++)
+          for(var cz=Math.floor((b[1]-.2)/8);cz<=Math.floor((b[3]+.2)/8);cz++){
+            var chave=cx+','+cz,cel=g.celulas.get(chave);if(!cel){cel=[];g.celulas.set(chave,cel);}cel.push(i);
+          }
+      }
+      colGrades.set(list,g);
+    }
+    g.quadro=colQuadro;
+  }
+  var ids=new Set(),resultado=[];
+  for(var ix=Math.floor(x0/8);ix<=Math.floor(x1/8);ix++)for(var iz=Math.floor(z0/8);iz<=Math.floor(z1/8);iz++){
+    var c=g.celulas.get(ix+','+iz);if(c)for(i=0;i<c.length;i++)ids.add(c[i]);
+  }
+  Array.from(ids).sort(function(a,b){return a-b;}).forEach(function(id){resultado.push(list[id]);});
+  return resultado;
+}
+function supportH(x,z,alt){var h=0,list=colIndice(colJogador(),x,z,x,z);if(alt===undefined)alt=P.alt;for(var i=0;i<list.length;i++){var b=list[i];
   if(b.ativo===false)continue;
   if(b[4]===undefined||b[4]<=h)continue;
   var m=b.bordaExata||b.topoEm?0:.2;
@@ -18822,7 +18896,7 @@ function fatTick(){var t0=performance.now(),alvo=renderer.getRenderTarget(),o=nu
   /* Three r128 varre a cena por material para achar luzes. Dentro desta fatia, elas são as mesmas. */
   var luzes=[];scene.traverseVisible(function(no){if(no.isLight)luzes.push(no);});falsa.traverseVisible=function(cb){luzes.forEach(cb);};
   /* mesmo alvo do desenho real: a saida de cor entra na chave do programa */
-  renderer.setRenderTarget(composer&&!BAT&&QL>0?composer.readBuffer:null);
+  renderer.setRenderTarget(composer&&qPost()?composer.readBuffer:null);
   try{while(FAT.i<FAT.l.length&&performance.now()-t0<12){o=FAT.l[FAT.i++];renderer.compile(falsa,camera);}}catch(e){console.warn('fatias',e);FAT.i=FAT.l.length;}
   renderer.setRenderTarget(alvo);fatCortina(FAT.i/Math.max(1,FAT.l.length));
   if(FAT.i>=FAT.l.length){FAT.on=false;FAT.l=null;FAT.ms=performance.now()-FAT.t0;fatCortina(-1);if(FAT.pw){FAT.pw=false;FATX=true;try{prewarmGPU(FAT.f);}finally{FATX=false;}}}}
@@ -19354,7 +19428,7 @@ function optSave(){try{localStorage.setItem('va_opt',JSON.stringify(OPT));}catch
 /* CEO 08/11 "quero que pause de verdade": menu aberto com o jogo rodando = mundo parado (sem update) e som suspenso */
 function pausado(){return !LOADING&&!!$('opt')&&$('opt').classList.contains('on');}
 function quizSemPausa(){return !!(S&&S.soco&&!S.soco.queda);}/* CEO 11/11: questao valendo nao pausa */
-function optOpen(on){if(!on){if(OPT_MENU)optCancelaMenu();if(RPG_PAUSA!==null)rpgClose();}if(on&&quizSemPausa()){try{say('Sem pausa durante as questões.','sys',1.6);}catch(e){}return;}var h=$('hudPausaDicas');if(h.parentNode!==$('opt'))$('opt').insertBefore(h,$('optOk'));h.hidden=false;dica(h,'{{avancar}} · {{menu}}');requestAnimationFrame(hudPausaRola);hudConfirmacoes();controleReset();controleFecha();var el=$('opt');if(!el)return;el.classList.toggle('on',on);try{if(AC&&!LOADING){if(on)AC.suspend();else AC.resume();}}catch(e){}if(!on)cadFecha();if(on){somSync();$('optPaz').hidden=!pazDisponivel();$('optInicio').hidden=LOADING;telaRotulo();$('optCamera').disabled=LOADING||S.phase!=='play'||(S.inCar?S.uno&&!PCARS[UNO_SPOT].m.userData.volanteUno:!MOB);$('optAgachar').disabled=LOADING||S.phase!=='play'||S.inCar||cenaOn();cadContagem();$('optGuia').checked=OPT.guia;$('optLant').checked=OPT.lant;$('optAA').value=AA.k;$('optGfx').value=GFX;try{if(document.exitPointerLock)document.exitPointerLock();}catch(e){}el.scrollTop=0;MENU_KEYS.dir=0;PADUI.dir=0;PADUI.root=null;menuFocus($('cadAbre'));menuSync();hudPausaRola();}}
+function optOpen(on){if(!on){if(OPT_MENU)optCancelaMenu();if(RPG_PAUSA!==null)rpgClose();}if(on&&quizSemPausa()){try{say('Sem pausa durante as questões.','sys',1.6);}catch(e){}return;}var h=$('hudPausaDicas');if(h.parentNode!==$('opt'))$('opt').insertBefore(h,$('optOk'));h.hidden=false;dica(h,'{{avancar}} · {{menu}}');requestAnimationFrame(hudPausaRola);hudConfirmacoes();controleReset();controleFecha();var el=$('opt');if(!el)return;el.classList.toggle('on',on);try{if(AC&&!LOADING){if(on)AC.suspend();else AC.resume();}}catch(e){}if(!on)cadFecha();if(on){somSync();$('optPaz').hidden=!pazDisponivel();$('optInicio').hidden=LOADING;telaRotulo();$('optCamera').disabled=LOADING||S.phase!=='play'||(S.inCar?S.uno&&!PCARS[UNO_SPOT].m.userData.volanteUno:!MOB);$('optAgachar').disabled=LOADING||S.phase!=='play'||S.inCar||cenaOn();cadContagem();$('optGuia').checked=OPT.guia;$('optLant').checked=OPT.lant;$('optAA').value=AA.k;gfxUI();try{if(document.exitPointerLock)document.exitPointerLock();}catch(e){}el.scrollTop=0;MENU_KEYS.dir=0;PADUI.dir=0;PADUI.root=null;menuFocus($('cadAbre'));menuSync();hudPausaRola();}}
 
 // ponytail: o cartao existente confirma; a pausa continua segurando mundo e audio.
 // === TELA CHEIA (tela-cheia.py 11/11) inicio ===
@@ -19423,7 +19497,7 @@ function optVoltaMenu(){if(!OPT_MENU)return;OPT_MENU=null;closeDec();LOADING=tru
   $('optLuz').onclick=function(){if(S.inCar)farolAlterna();else LANT.man=!lantOn();};$('optOk').onclick=function(){optOpen(false);};
   $('optGuia').onchange=function(){OPT.guia=this.checked;optSave();};
   $('optAA').onchange=function(){aaSet(+this.value);};
-  $('optGfx').onchange=function(){gfxSet(+this.value);};
+  $('optGfx').onchange=function(){gfxSet(+this.value);};[].forEach.call(document.querySelectorAll('#optGfxAv select'),function(s){s.onchange=function(){gfxItem(s.dataset.gx,+s.value);};});
   $('optLant').onchange=function(){OPT.lant=this.checked;LANT.man=null;optSave();};
   document.addEventListener('keydown',function(e){
     if(e.code==='KeyO'){optOpen(!$('opt').classList.contains('on'));e.preventDefault();}
@@ -19579,7 +19653,7 @@ render=function(dt,t){
   solEscolta();applyNight();goldenHour();mercAmb(dt);lantUpdate(dt);guiaUpdate(dt);
   if(MI.k<.003){_render0(dt,t);return;}
   var k=MI.k,s0=sun.intensity,h0=hemi.intensity,hc=hemi.color.clone(),hg=hemi.groundColor.clone();
-  sun.intensity=s0*(1-.9*k);hemi.intensity=h0*(1-k)+1.15*k;hemi.color.lerp(!BAT&&(GFX===0||GFX===3)?_MIfria:_MIc,k*.8);hemi.groundColor.lerp(_MIg,k*.8);
+  sun.intensity=s0*(1-.9*k);hemi.intensity=h0*(1-k)+1.15*k;hemi.color.lerp(!BAT&&GFX!==1&&GFX!==2?_MIfria:_MIc,k*.8);hemi.groundColor.lerp(_MIg,k*.8);
   _render0(dt,t);
   sun.intensity=s0;hemi.intensity=h0;hemi.color.copy(hc);hemi.groundColor.copy(hg);
 };
@@ -21884,7 +21958,7 @@ function fx(dt,t){
   DUST.update(dt);WIND.update(dt,t,cp.x,cp.z);
   audioUpdate(dt);
   document.body.classList.toggle('incar',S.inCar&&S.phase==='play');document.body.classList.toggle('uno',!!S.uno);
-  sunFollow(cp.x,cp.z);sombraPes();
+  sombraQuadro(cp.x,cp.z);sombraPes();
   var bl=Math.sin(t*2.4)>0?1:.15;
   for(var i=0;i<statLights.length;i++){var s=statLights[i];s.material.color.setRGB(3*bl,.15*bl,.15*bl);s.scale.setScalar(.8+.3*bl);}
   /* luzes de ponto */
@@ -21935,9 +22009,43 @@ function fx(dt,t){
 function runSelftest(){
   var estacionamentoInicial=unoGuarda(); /* A perseguicao move o Uno; o teste de estacionamento verifica o spawn original. */
   var n=0,ok=0,fails=[];QUIZ_TRAVA_MS=0;vibMudoLiga();
-  function T(name,fn){if(ST_SO&&name.indexOf(ST_SO)<0)return;DBGW.__TEST_PROGRESS=name;n++;try{var r=fn();if(r===false)throw new Error('retornou false');ok++;}catch(e){fails.push(name+': '+(e&&e.message||e)+(e&&e.stack?' @@'+e.stack.split('\n').slice(1,4).join(' | '):''));}}
+  function T(name,fn){colQuadro++;if(ST_SO&&name.indexOf(ST_SO)<0)return;DBGW.__TEST_PROGRESS=name;n++;try{var r=fn();if(r===false)throw new Error('retornou false');ok++;}catch(e){fails.push(name+': '+(e&&e.message||e)+(e&&e.stack?' @@'+e.stack.split('\n').slice(1,4).join(' | '):''));}}
   function eq(a,b,m){if(a!==b)throw new Error((m||'')+' esperado '+b+' veio '+a);}
   function tr(c,m){if(!c)throw new Error(m||'falso');}
+function supportHVarre(x,z,alt){var h=0,list=colJogador();if(alt===undefined)alt=P.alt;for(var i=0;i<list.length;i++){var b=list[i];
+  if(b.ativo===false)continue;
+  if(b[4]===undefined||b[4]<=h)continue;
+  var m=b.bordaExata||b.topoEm?0:.2;
+  if(x>=b[0]-m&&x<=b[2]+m&&z>=b[1]-m&&z<=b[3]+m){var y=b.topoEm?b.topoEm(x,z):b[4];if(y>h&&alt>=y-.3)h=y;}}return h;}
+function tfFreeVarre(n,x,z,yaw,gap,world){var h=n.bike?1:(n.len||4.4)/2,w=n.bike?.5:tfWidth(n),y=surfaceY(clamp(x,-BOUND_X,BOUND_X),z),i,o,p;
+ for(i=0;i<TRAF.length;i++){o=TRAF[i];if(o===n||o.oc!=null||!o.m.visible||Math.abs(y-o.m.position.y)>1.8)continue;if(tfOverlap(x,z,yaw,w,h,o.x,o.z,o.yaw,tfWidth(o),(o.len||4.4)/2,gap))return false;}
+ for(i=0;i<NPCS.length;i++){o=NPCS[i];if(o===n||!o.m.visible||o.down||o.fly||Math.abs(y-(o.y||0))>1.8)continue;if(tfOverlap(x,z,yaw,w,h,o.x,o.z,o.yaw||0,o.bike?.5:.4,o.bike?1:.4,Math.min(gap,.2)))return false;}
+ if(tfOverlap(x,z,yaw,w,h,C0.x,C0.z,C0.yaw,1.1,2.3,Math.min(gap,.2)))return false;
+ if(!S.inCar&&tfOverlap(x,z,yaw,w,h,P.x,P.z,0,.4,.4,Math.min(gap,.2)))return false;
+ if(S.fc&&S.fc.on&&tfOverlap(x,z,yaw,w,h,S.fc.x,S.fc.z,S.fc.yaw,1.1,2.3,Math.min(gap,.2)))return false;
+ for(i=0;i<PCARS.length;i++){o=PCARS[i];if(!o.m||!o.m.visible||S.uno&&i===UNO_SPOT)continue;p=o.m.position;if(tfOverlap(x,z,yaw,w,h,p.x,p.z,o.m.rotation.y,tfWidth(o),2.25,Math.min(gap,.2)))return false;}
+ if(!world)return true;
+ /* ponytail: caixa envolvente conservadora antes do SAT existente; mesma colisao. */
+ var sn=Math.abs(Math.sin(yaw)),cs=Math.abs(Math.cos(yaw)),tx=sn*h+cs*w+.06,tz=cs*h+sn*w+.06;
+ var x0=x-tx,x1=x+tx,z0=z-tz,z1=z+tz;
+ for(i=0;i<COL.length;i++){o=COL[i];if(x1<=o[0]||x0>=o[2]||z1<=o[1]||z0>=o[3])continue;
+ if(o.ativo===false||o.soPe||o.minY>y+1.8||o.maxY<y+.1||o[4]!=null&&o[4]<.25)continue;
+ if(tfOverlap(x,z,yaw,w,h,(o[0]+o[2])/2,(o[1]+o[3])/2,0,(o[2]-o[0])/2,(o[3]-o[1])/2,.06))return false;}
+ var mp=mpObj(),ca=mp&&mp.userData.pg&&mp.userData.pg.userData.cancela;
+ if(ca)for(i=0;i<ca.items.length;i++){o=ca.items[i];if(o.fall||o.th&&o.th.fim)continue;p=o.o.position;if(tfOverlap(x,z,yaw,w,h,p.x,p.z,0,.32,.32,.1))return false;}
+ for(i=0;i<ENTULHO.length;i++){o=ENTULHO[i];p=o.m.position;if(p.y>y+1.5)continue;if(tfOverlap(x,z,yaw,w,h,p.x,p.z,0,Math.max(.15,o.sx/2),Math.max(.15,o.sz/2),.1))return false;}
+ return true;}
+  T('CEO 24/11 100 fps: indice de colisao igual a varredura',function(){
+    fresh();var estado=123456789;function rnd(){estado=(Math.imul(estado,1664525)+1013904223)>>>0;return estado/4294967296;}
+    function compara(){
+      for(var i=0;i<10000;i++){var x=(rnd()*2-1)*BOUND_X,z=(rnd()*2-1)*BOUND_Z,alt=rnd()*30;eq(supportH(x,z,alt),supportHVarre(x,z,alt),'apoio '+i);}
+      var carro={len:4.4};for(var j=0;j<2000;j++){var x=(rnd()*2-1)*BOUND_X,z=(rnd()*2-1)*BOUND_Z,yaw=rnd()*Math.PI*2,gap=rnd();eq(tfFree(carro,x,z,yaw,gap,true),tfFreeVarre(carro,x,z,yaw,gap,true),'trafego '+j);}
+    }
+    var caixa=[-4,-4,4,4,5];COL.push(caixa);colQuadro++;
+    try{compara();caixa[0]+=80;caixa[2]+=80;colQuadro++;eq(supportH(80,0,99),supportHVarre(80,0,99),'caixa movida');compara();}
+    finally{COL.pop();colQuadro++;}
+  });
+
   T('dificuldade 10/11: questaoPara entrega so a dificuldade da tabela em 30 sorteios e cai na vizinha sem travar',function(){
     fresh();
     Object.keys(MINIGAME_DIFICULDADE).forEach(function(m){var d=MINIGAME_DIFICULDADE[m];
@@ -23763,20 +23871,61 @@ T('CEO 07/11 heroi: sem bigode (rosto liso), oculos escuro fixo e braco peludo n
   T('CEO 09/11 18h30 pause sem trava no toque e grafico na tela inicial',function(){var g0=GFX,q0=QL,o=$('opt'),k=$('optOk'),b=$('mGfx');try{
     tr(o.matches(NOTOUCH),'toque no menu ainda vira joystick');eq(getComputedStyle(o).touchAction,'pan-y');eq(getComputedStyle(k).position,'sticky');
     var ev={changedTouches:[],target:k,p:0,preventDefault:function(){this.p++;}};tMove(ev);eq(ev.p,0,'rolagem do menu bloqueada');ev.target=document.body;tMove(ev);eq(ev.p,1);
-    gfxSet(0);tr(/AUTOM/.test(b.textContent));b.onclick();eq(GFX,1);tr(/GRÁFICO: PS2/.test(b.textContent));b.onclick();eq(GFX,2);tr(/GRÁFICO: PS1/.test(b.textContent));tr(!/BATATA/i.test(b.textContent+$('optGfx').textContent),'nome antigo na tela');eq($('optGfx').options[1].text,'PS2');eq($('optGfx').options[2].text,'PS1');eq($('optGfx').value,'2');b.onclick();eq(GFX,0);
+    gfxSet(0);tr(/AUTOM/.test(b.textContent));b.onclick();eq(GFX,1);tr(/GRÁFICO: PS2/.test(b.textContent));b.onclick();eq(GFX,2);tr(/GRÁFICO: PS1/.test(b.textContent));tr(!/BATATA/i.test(b.textContent+$('optGfx').textContent),'nome antigo na tela');eq($('optGfx').querySelector('option[value="1"]').text,'PS2');eq($('optGfx').querySelector('option[value="2"]').text,'PS1');eq($('optGfx').value,'2');b.onclick();eq(GFX,0);
     }finally{GFX=g0;try{localStorage.removeItem('vda_gfx');}catch(e){}batSet(0);applyQ(q0);gfxRotulo();}});
-  T('CEO 09/11 17h40 grafico nas opcoes: batata leve e supremo na mao, adaptativo devolve o automatico',function(){var q0=QL,g0=GFX,f0=camera.far,o=$('optGfx');try{
-    tr(o&&o.options.length===3,'sem seletor de grafico');optOpen(true);eq(+o.value,GFX);tr(menuButtons($('opt')).indexOf(o)>=0,'seletor fora da navegacao do menu');
+  T('CEO 09/11 17h40 grafico nas opcoes: batata leve e supremo na mao, adaptativo devolve o automatico',function(){var q0=QL,g0=GFX,f0=camera.far,o=$('optGfx'),gp0=GPUN;GPUN='placa generica';try{
+    tr(o&&o.options.length===(MOB?8:7),'sem seletor de grafico');optOpen(true);eq(+o.value,GFX);tr(menuButtons($('opt')).indexOf(o)>=0,'seletor fora da navegacao do menu');
     o.value='2';o.onchange();eq(BAT,2);eq(GFX,2);eq(localStorage.getItem('vda_gfx'),'2');tr(PR<=.5,'supremo resolucao '+PR);
     o.value='1';o.onchange();eq(BAT,1);eq(GFX,1);eq(localStorage.getItem('vda_gfx'),'1');tr(PR<=.75&&PR>.5,'leve resolucao '+PR);
     o.value='0';o.onchange();eq(BAT,0);eq(GFX,0);eq(QL,QDEF);eq(camera.far,f0);eq(localStorage.getItem('vda_gfx'),null);eq(localStorage.getItem('vda_bat'),null);
     optOpen(false);optOpen(true);eq(o.value,'0');
-    }finally{optOpen(false);GFX=g0;try{localStorage.removeItem('vda_gfx');}catch(e){}batSet(0);applyQ(q0);}});
-  T('CEO 09/11 17h batata: vigia de fps desce ate o modo batata; 60 e 30 cravado nao descem',function(){var b0=BAT,q0=QL,gpu0=GPUN;try{GPUN='placa generica';batSet(0);applyQ(2);QM.r=0;
+    }finally{GPUN=gp0;optOpen(false);GFX=g0;try{localStorage.removeItem('vda_gfx');}catch(e){}batSet(0);applyQ(q0);}});
+  function gfxVolta(g,b,q){QM.pend=null;GFX=g;QX=null;try{['vda_gfx','vda_gfxc','vda_bat','vda_q2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}batSet(b);applyQ(q);gfxUI();}
+  function gfxSel(k){return $('optGfxAv').querySelector('[data-gx="'+k+'"]');}
+  T('GRAFICO presets: rotulos PS1 a PS5 Pro, sem PS5 normal, com Automatico e Personalizado',function(){var g0=GFX,b0=BAT,q0=QL,o=$('optGfx'),b=$('mGfx');try{
+    var tx=[].map.call(o.options,function(x){return x.text;});eq(tx.slice(0,7).join('|'),'Automático|PS1|PS2|PS3|PS4|PS5 Pro|Personalizado');tr(tx.indexOf('PS5')<0,'PS5 normal na lista');
+    [[2,'PS1'],[1,'PS2'],[4,'PS3'],[5,'PS4'],[6,'PS5 PRO']].forEach(function(c){gfxSet(c[0],true);eq(b.firstChild.nodeValue,'GRÁFICO: '+c[1]);eq(o.value,String(c[0]));});
+    gfxSet(2,true);eq(BAT,2);gfxSet(1,true);eq(BAT,1);gfxSet(4,true);eq(BAT,0);eq(QL,0);eq(qT().shadow,false,'PS3 com sombra');
+    gfxSet(5,true);eq(BAT,0);eq(QL,2);gfxSet(6,true);eq(QL,3);if(!MOB){eq(qT().sh,2048);eq(qT().sao,true,'PS5 Pro sem SAO');eq(qT().pr,2);}
+    var tela=o.textContent+$('optGfxAv').textContent+b.textContent;tr(!/\bIA\b/.test(tela)&&tela.indexOf('—')<0,'IA ou travessao na tela');
+    tr(menuButtons($('opt')).length>=0&&$('optGfxAv').querySelectorAll('select').length===8,'menu avancado incompleto');
+  }finally{gfxVolta(g0,b0,q0);}});
+  T('GRAFICO automatico: deteccao pela placa (GPUN), PS5 Pro nunca no automatico',function(){var gp=GPUN,m=MOB,g0=GFX,b0=BAT,q0=QL;try{MOB=false;
+    GPUN='ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)';eq(gfxAuto(),2);gfxSet(0,true);eq(BAT,2,'sem placa nao virou PS1');
+    GPUN='ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)';eq(gfxAuto(),1);gfxSet(0,true);eq(BAT,1,'placa fraca nao virou PS2');
+    GPUN='placa generica';eq(gfxAuto(),5);gfxSet(0,true);eq(BAT,0);eq(QL,QDEF,'comum nao virou PS4');
+    GPUN='ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)';eq(gfxAuto(),5,'forte foi para PS5 Pro sozinho');
+    MOB=true;GPUN='Apple GPU';eq(gfxAuto(),1,'celular nao nasce PS2');MOB=false;eq(GFX,0);tr(/AUTOM/.test($('mGfx').textContent));
+  }finally{GPUN=gp;MOB=m;gfxVolta(g0,b0,q0);}});
+  T('GRAFICO escolha gravada sobrevive a recarga (Maximo antigo no computador vira PS4)',function(){var m=MOB,g0=GFX,b0=BAT,q0=QL;try{MOB=false;
+    gfxSet(6,true);eq(localStorage.getItem('vda_gfx'),'6');eq(gfxLe().g,6);
+    gfxItem('grass',.25);var r=gfxLe();eq(r.g,7);eq(r.x.t.grass,.25);eq(r.x.q,3);eq(r.x.b,0);eq(r.x.t.sh,QX.t.sh);eq(r.x.t.shadow,QX.t.shadow);
+    localStorage.setItem('vda_gfx','3');eq(gfxLe().g,5,'Maximo antigo no computador virou outro');MOB=true;eq(gfxLe().g,3);MOB=false;
+    localStorage.setItem('vda_gfx','2');eq(gfxLe().g,2);localStorage.setItem('vda_gfx','7');localStorage.setItem('vda_gfxc','{lixo');eq(gfxLe().g,0,'Personalizado corrompido');
+    localStorage.setItem('vda_gfxc',JSON.stringify({b:9,q:1,t:{}}));eq(gfxLe().g,0,'base invalida aceita');
+  }finally{MOB=m;gfxVolta(g0,b0,q0);}});
+  T('GRAFICO item avulso vira Personalizado e volta inteiro ao preset',function(){var m=MOB,gp=GPUN,ph=S.phase,g0=GFX,b0=BAT,q0=QL;try{MOB=false;GPUN='placa generica';S.phase='ui';
+    gfxSet(5,true);var f0=camera.far,d0=scene.fog.density,l2=NPC_L2,pr0=PR,s=gfxSel('grass');eq(s.value,'1');
+    s.value='0.25';s.onchange();eq(GFX,7);eq($('optGfx').value,'7');tr(/PERSONALIZADO/.test($('mGfx').textContent));eq(qT().grass,.25);eq(QL,2);eq(qT().ms,QT[2].ms,'mexeu no que nao pediu');
+    if(CAPIM)eq(CAPIM.userData.cap,Math.floor(CAPIM.userData.n*.25));eq(camera.far,f0,'horizonte mudou sem pedir');
+    s=gfxSel('vis');s.value='0';s.onchange();eq(camera.far,Math.min(f0,200));tr(skyMesh.geometry.parameters.radius*skyMesh.scale.x<camera.far,'ceu cortado pelo horizonte');eq(qT().grass,.25,'perdeu item anterior');
+    s=gfxSel('npc');s.value='0';s.onchange();eq(NPC_L2,Math.min(l2,45));
+    s=gfxSel('pr');s.value='0.5';s.onchange();eq(PR,Math.min(window.devicePixelRatio||1,.5));eq(gfxSel('grass').value,'0.25');
+    gfxSet(5,true);eq(GFX,5);eq(camera.far,f0);eq(scene.fog.density,d0);eq(NPC_L2,l2);eq(qT().grass,QT[2].grass);eq(PR,pr0);eq(gfxSel('grass').value,'1');
+    gfxSet(7,true);eq(qT().grass,.25,'Personalizado esqueceu');eq(NPC_L2,Math.min(l2,45));gfxSet(2,true);eq(NPC_L2,Math.min(l2,45));gfxSet(5,true);eq(NPC_L2,l2);eq(camera.far,f0);
+  }finally{MOB=m;GPUN=gp;S.phase=ph;gfxVolta(g0,b0,q0);}});
+  T('GRAFICO troca pesada nao aplica no meio do jogo e aplica na pausa',function(){var m=MOB,gp=GPUN,ph=S.phase,paz=S.pazFade,cena=cenaOn,g0=GFX,b0=BAT,q0=QL;try{MOB=false;GPUN='placa generica';S.phase='ui';optOpen(false);
+    gfxSet(4,true);qWatch(.016);eq(renderer.shadowMap.enabled,false);cenaOn=function(){return false;};S.pazFade=0;
+    S.phase='play';tr(!pausado(),'pausado no inicio');var s=gfxSel('sh');s.value='2048';s.onchange();eq(GFX,7);eq(renderer.shadowMap.enabled,false,'sombra ligou no meio do jogo');tr(QM.pend!=null,'sem pendencia');
+    qWatch(.016);eq(renderer.shadowMap.enabled,false,'aplicou jogando');
+    optOpen(true);try{tr(pausado());qWatch(.016);}finally{optOpen(false);}eq(renderer.shadowMap.enabled,true,'pausa nao aplicou');eq(QM.pend,null);eq(sun.shadow.mapSize.x,2048);eq(gfxSel('sh').value,'2048');
+    S.phase='play';gfxSet(4);eq(renderer.shadowMap.enabled,true,'preset desligou sombra jogando');tr(QM.pend!=null);S.phase='ui';qWatch(.016);eq(renderer.shadowMap.enabled,false);eq(QM.pend,null);
+  }finally{cenaOn=cena;S.pazFade=paz;S.phase=ph;MOB=m;GPUN=gp;gfxVolta(g0,b0,q0);}});
+  T('CEO 09/11 17h batata: vigia de fps desce ate o modo batata; 60 e 30 cravado nao descem',function(){var b0=BAT,q0=QL,gpu0=GPUN,ph0=S.phase;try{S.phase='ui';GPUN='placa generica';batSet(0);applyQ(2);QM.r=0;
     tr(!qDesce(60),'60 fps desceu');tr(!qDesce(30),'30 cravado desceu');eq(QL,2);eq(BAT,0);
     if(!MOB){tr(!qDesce(40),'1 janela a 40 ja desceu');tr(qDesce(40),'2 janelas a 40 nao desceu');eq(QL,1);tr(qDesce(12),'12 fps nao desceu');eq(QL,0);eq(BAT,0);tr(!qDesce(40),'40 no nivel 0 nao e batata');tr(!qDesce(40),'40 no nivel 0 virou batata');eq(BAT,0);}
     tr(qDesce(22),'22 fps nao entrou no batata');eq(BAT,1);eq(QL,0);tr(qDesce(15),'15 fps');eq(BAT,2);tr(!qDesce(10),'passou do fundo');eq(BAT,2);
-    }finally{GPUN=gpu0;QM.pend=null;QM.r=0;batSet(b0);applyQ(q0);}});
+    }finally{S.phase=ph0;GPUN=gpu0;QM.pend=QM.pb=null;QM.r=0;batSet(b0);applyQ(q0);}});
   T('qualidade troca de nivel em jogo sem quebrar',function(){var q0=QL;applyQ(0);eq(renderer.shadowMap.enabled,false);tr(CAPIM.userData.cap<CAPIM.userData.n,'capim nao caiu');render(.016,1);applyQ(3);eq(renderer.shadowMap.enabled,!MOB);eq(CAPIM.userData.cap,Math.floor(CAPIM.userData.n*(MOB?.25:1)));render(.016,1);applyQ(q0);});
   function rmN(n){NPCS.splice(NPCS.indexOf(n),1);scene.remove(n.m);delete NPCBY[n.id];}
   T('sandbox: civil morre sem fim de jogo',function(){fresh();exitCar(true);S.phase='play';P.x=0;P.z=40;P.y=surfaceY(P.x,P.z);L.yaw=0;L.pitch=0;CB.force=.99;var c=addNPC('t_sbc',{shirt:0x336699},{x:0,z:35,yaw:0,mode:'idle'});CB.drawn=true;fire();CB.force=null;tr(c.down,'nao caiu');tr(!FAILING,'fim de jogo');step(.5);tr(c.m.userData.gl?c.m.userData.gl.cur==='Death':c.m.rotation.x<-1.3,'nao tombou');rmN(c);});
@@ -24026,6 +24175,12 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
   T('luta 07/11: acerto toca soco de verdade (amostra door-kick + grave)',function(){var f=sfx.toString(),k=f.slice(f.indexOf("n==='soco'"));tr(k.indexOf("smp('door-kick'")>0,'soco sem amostra');tr(SFXN.indexOf('door-kick')>=0,'door-kick fora da lista');tr(lutaAns.toString().indexOf("sfx(hit?'soco'")>=0,'luta nao chama soco');});
   T('arma 07/11: tiro do jogador = tiro-pm pesado, sacar = reload (5a reclamacao chumbinho)',function(){var f=sfx.toString(),sh=f.slice(f.indexOf("n==='shot'"),f.indexOf("n==='rifle'"));tr(sh.indexOf("tiro-pm-")>0,'shot sem tiro-pm');tr(sh.indexOf("smpE('pistol-shot-close'")<0,'shot ainda no CC0 fino');var d=sfxDraw.toString();tr(d.indexOf("sacar-reload")>0,'sacar sem reload');tr(d.indexOf("'square'")<0,'sacar com clique sintetico (tampa de garrafa)');['tiro-pm-1','tiro-pm-2','sacar-reload'].forEach(function(n){tr(SFXN.indexOf(n)>=0,n+' fora do SFXN');});});
   T('frota IA 06/11: sem carro sem roda (monza, saveiro, kombi)',function(){var all=IA_FROTA.concat(Object.keys(IA_SPOTS).map(function(k){return IA_SPOTS[k].f;}));['monza-ia','saveiro-ia','kombi-ia','gol-ia','brasilia-ia'].forEach(function(f){tr(all.indexOf(f)<0,f+' na frota');});});
+  T('CEO 24/11 peso: sombra em quadros alternados, sol junto, carro rapido todo quadro',function(){var s0=SOMBRA2,q0=SOMBRA2_Q,ic=S.inCar,v0=C0.v,au=renderer.shadowMap.autoUpdate,nu=renderer.shadowMap.needsUpdate,m0=sun.shadow.map;
+    try{sun.shadow.map=m0||{};S.inCar=false;C0.v=0;SOMBRA2=false;var p0=sun.position.x;tr(sombraQuadro(3,7)&&sombraQuadro(40,7),'desligada pulou quadro');tr(sun.position.x!==p0,'sol parado');
+      SOMBRA2=true;SOMBRA2_Q=0;var r=[0,1,2,3,4,5].map(function(i){renderer.shadowMap.needsUpdate=false;var px=sun.position.x,u=sombraQuadro(i*9,5);eq(renderer.shadowMap.needsUpdate,u,'mapa e sol separados');eq(sun.position.x!==px,u,'sol andou sem mapa');return u?1:0;});eq(r.join(''),'101010');
+      S.inCar=true;C0.v=20;tr(sombraQuadro(1,1)&&sombraQuadro(2,1)&&sombraQuadro(3,1),'carro rapido pulou quadro');C0.v=-20;tr(sombraQuadro(4,1)&&sombraQuadro(5,1),'re rapida pulou quadro');
+      S.inCar=false;sun.shadow.map=null;tr(sombraQuadro(6,1)&&sombraQuadro(7,1),'sem mapa nao desenhou');
+    }finally{sun.shadow.map=m0;SOMBRA2=s0;SOMBRA2_Q=q0;S.inCar=ic;C0.v=v0;renderer.shadowMap.autoUpdate=au;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
   T('sombra 06/11: sol encaixa no texel, sem flicker',function(){var tx=2*SHS/sun.shadow.mapSize.x;[[3.3,7.1],[41.7,-12.9],[-88.2,55.5]].forEach(function(p){sunFollow(p[0],p[1]);var a=sun.target.position.dot(SUNR)/tx,b=sun.target.position.dot(SUNU)/tx;tr(Math.abs(a-Math.round(a))<1e-3&&Math.abs(b-Math.round(b))<1e-3,'fora da grade');tr(Math.hypot(sun.target.position.x-p[0],sun.target.position.z-p[1])<tx*3+5,'longe do heroi');});sunFollow(P.x,P.z);});
   T('CENA LIVRE 11/11: veiculo em 5 pontos da cena sai da area e ator nao cruza veiculo',function(){
     fresh();exitCar(true);var c0={x:C0.x,z:C0.z,yaw:C0.yaw},mor=NPCBY.morador3,sv=mor&&cap2Save(mor);
@@ -27106,12 +27261,20 @@ fresh();exitCar(true);clearSubs();var c=chefeSpawn(),aspect=camera.aspect;P.x=c.
       var telha=ficha(5);eq(ficha(5-1e-6),telha,'indice interpolado caiu na linha anterior do atlas');eq(ficha(5+1e-6),telha,'indice interpolado mudou amostra');
     }finally{renderer.setRenderTarget(old);SUP.uAtlas.value=oldAtlas;tex.dispose();if(created){scene.remove(created);created.geometry.dispose();}CAP2.stallMesh=stall;COL.length=col;geo.dispose();mat.dispose();rt.dispose();S.phase=ph;BAT=b;GFX=g;MOB=mob;applyQ(q);QM.pend=pend;QM.pt=pt;}
   });
-  T('SUPERFICIES: 46 segundos a 24 fps aplicam pendente sem prewarm; queda a 19 tambem',function(){
+  T('CEO 24/11 PS5 Pro 90 fps: SAO desenha a cidade 1 vez (so profundidade), sem refazer sombra nem matriz',function(){
+    if(!composer||!saoCria||!THREE.SAOPass)return;var novo=!saoPass;if(novo)saoCria();tr(saoPass,'SAO nao criou');
+    var rr=renderer.render,sr=renderer.shadowMap.render,mw=scene.updateMatrixWorld,cenas=0,sombras=0,mats=0;
+    renderer.render=function(sc){if(sc===scene)cenas++;return rr.apply(this,arguments);};renderer.shadowMap.render=function(){sombras++;return sr.apply(this,arguments);};scene.updateMatrixWorld=function(){mats++;return mw.apply(this,arguments);};
+    try{saoPass.render(renderer,composer.writeBuffer,composer.readBuffer,0,false);}finally{renderer.render=rr;renderer.shadowMap.render=sr;delete scene.updateMatrixWorld;if(novo){composer.passes.splice(composer.passes.indexOf(saoPass),1);saoPass=null;}}
+    eq(cenas,1,'SAO redesenhou a cidade mais de 1 vez');eq(sombras,0,'SAO refez a sombra');eq(mats,0,'SAO refez matrizes');tr(scene.autoUpdate&&renderer.shadowMap.autoUpdate,'SAO nao devolveu o estado');
+  });
+  T('CEO 24/11 trava com muito NPC: 46 s a 24 fps e queda a 19 NAO recompilam em jogo; aplicam na pausa',function(){
     var b=BAT,q=QL,g=GFX,mob=MOB,ph=S.phase,pend=QM.pend,pt=QM.pt,warm=prewarmGPU,cena=cenaOn,paz=S.pazFade,gpu=GPUN,vezes=0;
     try{GPUN='placa generica';MOB=false;BAT=GFX=0;S.phase='ui';applyQ(2);prewarmGPU=function(){vezes++;};S.phase='play';S.pazFade=0;cenaOn=function(){return false;};QM.pend=null;QM.pt=0;
-      applyQ(1,true);var disposes=0;function disposed(){disposes++;}SUP.geometrias.forEach(function(e){e.g.addEventListener('dispose',disposed);});try{for(var i=0;i<46*24;i++)qWatch(1/24);eq(disposes,0,'reenviou cidade em jogo');}finally{SUP.geometrias.forEach(function(e){e.g.removeEventListener('dispose',disposed);});}eq(QM.pend,null,'45s nao aplicou');eq(QL,1);eq(SUP.on,false);eq(renderer.shadowMap.enabled,qT().shadow);eq(vezes,0,'prewarm na troca forcada');tr(SUP.limpa,'sem limpeza adiada');tr(qDesce(24),'vigia nao processou fps simulado');eq(QL,0,'24 fps deve descer mais um nivel como HEAD');S.phase='ui';qWatch(.016);tr(!SUP.limpa);SUP.geometrias.forEach(function(e){tr(!e.g.getAttribute('supTipo'),'atributo retido apos pausa');});
-      S.phase='ui';applyQ(2);vezes=0;S.phase='play';tr(qDesce(19),'vigia nao desceu');eq(vezes,0,'prewarm sob 20 fps');eq(SUP.on,false);eq(QM.pend,null);
-    }finally{GPUN=gpu;prewarmGPU=warm;cenaOn=cena;S.pazFade=paz;S.phase=ph;BAT=b;GFX=g;MOB=mob;applyQ(q);QM.pend=pend;QM.pt=pt;}
+      applyQ(1,true);var disposes=0;function disposed(){disposes++;}SUP.geometrias.forEach(function(e){e.g.addEventListener('dispose',disposed);});try{for(var i=0;i<46*24;i++)qWatch(1/24);eq(disposes,0,'reenviou cidade em jogo');}finally{SUP.geometrias.forEach(function(e){e.g.removeEventListener('dispose',disposed);});}eq(QL,1);eq(QM.pend,1,'troca pesada aplicou no meio do jogo (trava)');eq(vezes,0,'prewarm em jogo');S.phase='ui';qWatch(.016);eq(QM.pend,null,'pausa nao aplicou');
+      S.phase='ui';applyQ(2);qWatch(.016);vezes=0;S.phase='play';var sh0=renderer.shadowMap.enabled;var pr0=PR;tr(qDesce(19),'vigia nao desceu');eq(renderer.shadowMap.enabled,sh0,'sombra trocou no meio do jogo (recompila tudo)');eq(QL,2,'qualidade trocou no meio do jogo (tira o pos-processo, recompila tudo)');tr(PR<=pr0,'resolucao nao caiu');eq(vezes,0,'prewarm sob 20 fps');eq(QM.pend,0,'descida nao ficou para a pausa');S.phase='ui';qWatch(.016);eq(QM.pend,null);eq(QL,0,'pausa nao aplicou a descida');
+      S.phase='play';tr(qDesce(15),'vigia nao entrou no batata');eq(BAT,0,'batata trocou luzes no meio do jogo (recompila tudo)');eq(QM.pb,1);S.phase='ui';qWatch(.016);eq(QM.pb,null);eq(BAT,1,'pausa nao aplicou o batata');
+    }finally{GPUN=gpu;prewarmGPU=warm;cenaOn=cena;S.pazFade=paz;S.phase=ph;batSet(b);BAT=b;GFX=g;MOB=mob;applyQ(q);QM.pend=pend;QM.pb=null;QM.pt=pt;}
   });
 
   T('missao dado: quatro listas iguais aos literais do HEAD',function(){
@@ -27866,7 +28029,7 @@ function menuInit(){
   $('mCont').onclick=function(){loadSolicita(saveLe()||{},$('mCont'));};
   /* CEO 08/11 controle: confirm() do navegador nao anda no joystick; confirma apertando de novo */
   $('mNovo').onclick=function(){if(LOADGO||LOADFAIL)return;var b=$('mNovo');if(saveLe()&&!b.dataset.conf){clearTimeout(b.confTimer);b.dataset.conf='1';b.textContent='APAGAR O SALVO E COMEÇAR?';b.confTimer=setTimeout(function(){delete b.dataset.conf;b.textContent='NOVO JOGO';},4000);return;}clearTimeout(b.confTimer);delete b.dataset.conf;loadSolicita({},b);};
-  $('mOpt').onclick=function(){audioInit();optOpen(true);};$('mGfx').onclick=function(){gfxSet((GFX+1)%(MOB?4:3));};if(MOB){var mzo=document.createElement('option');mzo.value='3';mzo.textContent='Máximo';$('optGfx').appendChild(mzo);$('optGfx').value=GFX;}gfxRotulo();
+  $('mOpt').onclick=function(){audioInit();optOpen(true);};$('mGfx').onclick=function(){gfxSet((GFX+1)%(MOB?4:3));};if(MOB){var mzo=document.createElement('option');mzo.value='3';mzo.textContent='Máximo';$('optGfx').appendChild(mzo);}gfxUI();
 }
 function loadTick(now){if(FAT&&FAT.on){fatTick();return true;}if(LOADTICK&&now-LOADTICK>1000)LOADAT+=now-LOADTICK;LOADTICK=now;
   if(LOADLAST!==(VIS7.ldL||0)){if(LOADFAIL==='carga'&&(VIS7.ldL||0)>LOADLAST){LOADFAIL=false;$('load').classList.remove('falhou');$('loadRetry').hidden=true;$('loadTitulo').textContent='BAIXANDO O JOGO NO SEU APARELHO';}LOADLAST=VIS7.ldL||0;LOADAT=now;}
@@ -27886,7 +28049,7 @@ function loadTick(now){if(FAT&&FAT.on){fatTick();return true;}if(LOADTICK&&now-L
   if(LOADW&&now-LOADW>350){if(!LOADGO.preparado&&now-LOADGO.inicio<2100&&(!SQV.ready||AC&&!AUDIO_EMBED['car-door']))return true;if(!LOADENTRA){LOADENTRA=true;return true;}loadEntra();return true;}
   return true;}
 var _last=0,_clk=0,_errN=0,PVD={p0:0,p1:0,t0:0,t1:0};
-function frame(now){
+function frame(now){colQuadro++;
   var ini=performance.now();PVD.ultmotor=PVD.motor||0;PVD.ultcarga=PVD.carga||'montando';
   PVD.carga=!LOADING?'jogo':LOADGO?(LOADGO.revela?'revelando':LOADGO.preparado?'desenho':'preparo'):LOADW?'menu':'montando';
   var q=S.fcCena;PVD.fcDe=q?(q.log.length?q.log[q.log.length-1].id:'entrada'):null;PVD.fcMsDe=q?Math.round(q.t*1000):0;
@@ -27928,7 +28091,7 @@ if(QS.get('luta'))lutaStart(); // LUTA (CEO 07/11): ?luta=1 abre direto na batal
 /* Antes era criado por worldClamp em z=-54: 8 shaders e 8 texturas durante a primeira arrancada.
    Monta e termina o fade ainda atras do loading, antes da varredura de materiais e do prewarm (PC e MOB). */
 buildBloqueioMP();mpFade(1.5);
-pocasBuild();ruaTextureSweep();menuInit();discRun();onResize();if(BAT)batSet(BAT);
+pocasBuild();ruaTextureSweep();menuInit();discRun();onResize();if(BAT||GFX===7)batSet(BAT);
 /* disclaimer unico: uma vez por sessao; nao roda no selftest nem em ?shot/?cena. Some em 3 s, com A/Enter/Esc, toque ou A do controle */
 function discRun(force){var d=$('disc');if(!d)return null;
   if(!force){if(SELFTEST||QS.get('shot')||QS.get('cena'))return null;try{if(sessionStorage.getItem('vda_disc'))return null;sessionStorage.setItem('vda_disc','1');}catch(e){}}
