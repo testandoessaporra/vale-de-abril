@@ -20951,17 +20951,18 @@ function ruaEscolhe(perfil,opcoes,ultima){
   var ch=opcoes.map(ruaChave),ok=ch.filter(t=>RUA_TAKE[vozH(t)]===perfil&&VOZ[vozH(t)]);
   if(ok.length>1)ok=ok.filter(t=>t!==ultima);return ok.length?armaFala(ok):null;
 }
-function ruaOcupada(){return !S||DEATH||S.phase!=='play'||cenaOn()||seqBusy()||QZ||S.soco||papoMudo()||SUBS.some(u=>u.hudTipo==='fala')||$('opt').classList.contains('on');}
+/* CEO 24/11 'aponto a arma e ninguem reclama, jogo menos vivo': reacao ao que o jogador FEZ (prio>=1: arma, tiro, atropelo) fala mesmo na escolta da Marlene; so o papo de fundo se cala. */
+function ruaOcupada(prio){return !S||DEATH||S.phase!=='play'||cenaOn()||seqBusy()||QZ||S.soco||(!prio&&papoMudo())||SUBS.some(u=>u.hudTipo==='fala')||$('opt').classList.contains('on');}
 function ruaPara(){var q=RUA_FALA;if(!q)return;RUA_FALA=null;q.el.remove();if(q.s){q.s.onended=null;try{q.s.stop();}catch(e){if(e.name!=='InvalidStateError')throw e;}q.s.disconnect();q.g.disconnect();if(q.pan)q.pan.disconnect();}if(q.ator&&q.ator.voz===q.id){q.ator.talk=0;q.ator.voz=null;}}
 function ruaTick(){var q=RUA_FALA;if(!q)return;
-  if(S.time>=q.fim||ruaOcupada()||q.n.down||!q.n.m.visible||!q.m.visible||(q.n.bike&&q.m.parent!==q.n.m)){ruaPara();return;}
+  if(S.time>=q.fim||ruaOcupada(q.prio)||q.n.down||!q.n.m.visible||!q.m.visible||(q.n.bike&&q.m.parent!==q.n.m)){ruaPara();return;}
   var v=q.p;if(q.cab)q.cab.getWorldPosition(v);else q.m.localToWorld(v.set(0,1.48,0));v.y+=.28;
   var dx=v.x-camera.position.x,dz=v.z-camera.position.z,d=Math.hypot(dx,dz);
   if(d>32){ruaPara();return;}
   if(q.g){var cy=camera.getWorldDirection(_vzd),rl=Math.hypot(cy.x,cy.z)||1;
     if(q.pan)q.pan.pan.value=d<.25?0:clamp((dx*-cy.z+dz*cy.x)/(rl*d),-1,1)*.92;q.g.gain.value=.95*clamp((32-d)/26,0,1);}
   v.project(camera);q.el.hidden=v.z< -1||v.z>1||Math.abs(v.x)>.98||Math.abs(v.y)>.98;if(!q.el.hidden){q.el.style.left=(v.x*50+50)+'%';q.el.style.top=(50-v.y*50)+'%';}}
-function falaNaRua(n,opcoes,opts){opts=opts||{};if(!n||!n.m?.userData||n.down||ruaOcupada())return null;
+function falaNaRua(n,opcoes,opts){opts=opts||{};if(!n||!n.m?.userData||n.down||ruaOcupada(opts.prio))return null;
   if(RUA_FALA){if(opts.prio>RUA_FALA.prio)ruaPara();else return null;}
   var perfil=opts.perfil||perfilRua(n),take=ruaEscolhe(perfil,opcoes,n.ultimaRua),t=take||ruaChave(opts.neutra||opcoes[0]),texto=t.slice(t.indexOf(': ')+2);
   var m=opts.corpo||n.m,ator=m===n.m?n:m.userData.motoN,el=document.createElement('div');el.className='fala-rua';el.textContent=texto;el.hidden=true;document.body.appendChild(el);
@@ -20969,7 +20970,7 @@ function falaNaRua(n,opcoes,opts){opts=opts||{};if(!n||!n.m?.userData||n.down||r
   // Uma gravação fria tem prazo curto; a missão, a saída de alcance e a troca de ator ainda cancelam na hora.
   var fimTexto=q.fim,comVoz=!!(take&&aok());if(comVoz)q.fim=Math.max(q.fim,S.time+5);
   n.ultimaRua=t;ruaTick();
-  if(comVoz&&RUA_FALA===q)vozGet(q.id,function(buf){if(RUA_FALA!==q||ruaOcupada()||S.time>=q.fim)return;
+  if(comVoz&&RUA_FALA===q)vozGet(q.id,function(buf){if(RUA_FALA!==q||ruaOcupada(q.prio)||S.time>=q.fim)return;
     var src=q.s=AC.createBufferSource(),g=q.g=AC.createGain();src.buffer=buf;src.connect(g);q.pan=AC.createStereoPanner?AC.createStereoPanner():null;if(q.pan)g.connect(q.pan);(q.pan||g).connect(AU.master);
     ruaTick();if(RUA_FALA!==q)return;src.playbackRate.value=vozRate(VOZ[q.id],t);q.t0=AC.currentTime;src.start(q.t0);var dur=buf.duration/src.playbackRate.value;q.fim=Math.max(fimTexto,S.time+dur+.15);
     if(ator){ator.talkStart=S.time;ator.talkDur=dur;ator.talk=S.time+dur;ator.voz=q.id;ator.emo=opts.prio?'surpreso':'neutro';ator.falaSeq=(ator.falaSeq||0)+1;}
@@ -24204,6 +24205,12 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
   T('CEO 25/11 travadinha do comeco: carga e preparo desenham a sombra (receitas do passe de sombra nascem no loading)',function(){
     tr(/renderer\.shadowMap\.needsUpdate=true/.test(String(prewarmGPU)),'preparo sem desenhar a sombra');tr(/autoUpdate&&!LOADING\)renderer\.shadowMap\.autoUpdate=false/.test(String(sombraQuadro)),'sombra alternada liga antes do fim da carga');
     var s0=SOMBRA2,q0=SOMBRA2_Q,au=renderer.shadowMap.autoUpdate,ld=LOADING,nu=renderer.shadowMap.needsUpdate;try{SOMBRA2=true;renderer.shadowMap.autoUpdate=true;LOADING=true;sombraQuadro(1,1);eq(renderer.shadowMap.autoUpdate,true,'desligou a sombra de todo quadro durante a carga');LOADING=false;sombraQuadro(2,1);eq(renderer.shadowMap.autoUpdate,false,'nao alternou depois da carga');}finally{SOMBRA2=s0;SOMBRA2_Q=q0;renderer.shadowMap.autoUpdate=au;LOADING=ld;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
+  T('CEO 24/11 jogo vivo: reacao a arma, tiro e atropelo fala na escolta da Marlene; papo de fundo segue calado',function(){
+    var a=[seqBusy,cenaOn,papoMudo];try{fresh();S.phase='play';seqBusy=cenaOn=function(){return false;};clearSubs();papoMudo=function(){return true;};
+      tr(ruaOcupada()&&ruaOcupada(0),'papo de fundo falou por cima da escolta');tr(!ruaOcupada(1),'atropelo calado na escolta');tr(!ruaOcupada(2),'arma apontada calada na escolta');
+      papoMudo=function(){return false;};tr(!ruaOcupada(),'rua calada fora da missao');
+      tr(/ruaOcupada\(opts\.prio\)/.test(String(falaNaRua))&&/ruaOcupada\(q\.prio\)/.test(String(ruaTick)),'fala da rua perdeu a prioridade');
+    }finally{seqBusy=a[0];cenaOn=a[1];papoMudo=a[2];fresh();}});
   T('sombra 06/11: sol encaixa no texel, sem flicker',function(){var tx=2*SHS/sun.shadow.mapSize.x;[[3.3,7.1],[41.7,-12.9],[-88.2,55.5]].forEach(function(p){sunFollow(p[0],p[1]);var a=sun.target.position.dot(SUNR)/tx,b=sun.target.position.dot(SUNU)/tx;tr(Math.abs(a-Math.round(a))<1e-3&&Math.abs(b-Math.round(b))<1e-3,'fora da grade');tr(Math.hypot(sun.target.position.x-p[0],sun.target.position.z-p[1])<tx*3+5,'longe do heroi');});sunFollow(P.x,P.z);});
   T('CENA LIVRE 11/11: veiculo em 5 pontos da cena sai da area e ator nao cruza veiculo',function(){
     fresh();exitCar(true);var c0={x:C0.x,z:C0.z,yaw:C0.yaw},mor=NPCBY.morador3,sv=mor&&cap2Save(mor);
