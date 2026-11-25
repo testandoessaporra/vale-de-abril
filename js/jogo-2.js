@@ -10172,7 +10172,10 @@ function bandidoRecebe(g){
   if(atr&&atr.position&&atr.normal&&atr.skinIndex&&atr.skinWeight&&atr.uv&&corpo.skeleton&&Array.isArray(g.animations)&&
     ['Idle_10','Running','Walking','Knock_Down','Face_Punch_Reaction','Punch_Combo_1'].every(function(nome){return g.animations.some(function(c){return c.name===nome;});})){
     ge.computeBoundingBox();var altura=ge.boundingBox.max.y-ge.boundingBox.min.y;
-    if(altura>0&&Number.isFinite(altura)){BANDIDO.erro=false;BANDIDO.g=g;return;}
+    if(altura>0&&Number.isFinite(altura)){
+      /* pesos e uv convertidos 1 vez na chegada do arquivo: a carga ja envia a placa os mesmos dados que a copia da cena usa. */
+      ['skinWeight','uv'].forEach(function(key){var w=atr[key];if(w.normalized){var ww=new Float32Array(w.array.length),div=key==='uv'?65535:255;for(var j=0;j<ww.length;j++)ww[j]=w.array[j]/div;ge.setAttribute(key,new THREE.BufferAttribute(ww,w.itemSize));}});
+      BANDIDO.erro=false;BANDIDO.g=g;return;}
   }
   BANDIDO.g=null;BANDIDO.erro=true;ERRS.push('modelo de cena do Fujão incompleto');
 }
@@ -11605,7 +11608,7 @@ function sinaisReg(base,tipo,frente,casco){
 function sinaisTick(tempo){
  var q=SINAIS;if(!q||!q.lista.length)return;
  var precisa=q.lista.length*8,im=q.im;
- if(!im||im.instanceMatrix.count<precisa){if(im){scene.remove(im);im.dispose();}im=q.im=new THREE.InstancedMesh(q.ge||(q.ge=new THREE.SphereGeometry(1,8,4)),q.mat||(q.mat=new THREE.MeshBasicMaterial({toneMapped:false})),Math.max(64,THREE.MathUtils.ceilPowerOfTwo(precisa)));im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.name='lentes-da-frota';im.userData.ruaTextureException='vidro: lentes de sinalização';scene.add(im);}
+ if(!im||im.instanceMatrix.count<precisa){if(im){scene.remove(im);im.dispose();}im=q.im=new THREE.InstancedMesh(q.ge||(q.ge=new THREE.SphereGeometry(1,8,4)),q.mat||(q.mat=new THREE.MeshBasicMaterial({toneMapped:false})),Math.max(64,THREE.MathUtils.ceilPowerOfTwo(precisa)));im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.name='lentes-da-frota';im.userData.ruaTextureException='vidro: lentes de sinalização';scene.add(im);im.setColorAt(0,q.cores[0]);/* 25/11: cor por copia desde o nascimento; sem isso a receita com cor nascia na entrada do jogo */}
  var count=0,piscando=tempo%0.72<.36,alcance=BAT===2?55:BAT===1?80:110;
  for(var i=q.lista.length-1;i>=0;i--){var r=q.lista[i],b=r.base,raiz=b,vis=true;
   while(raiz.parent&&raiz.parent!==scene){vis=vis&&raiz.visible;raiz=raiz.parent;}
@@ -18913,6 +18916,14 @@ function fatTick(){var t0=performance.now(),alvo=renderer.getRenderTarget(),o=nu
   try{while(FAT.i<FAT.l.length&&performance.now()-t0<12){o=FAT.l[FAT.i++];renderer.compile(falsa,camera);}}catch(e){console.warn('fatias',e);FAT.i=FAT.l.length;}
   renderer.setRenderTarget(alvo);fatCortina(FAT.i/Math.max(1,FAT.l.length));
   if(FAT.i>=FAT.l.length){FAT.on=false;FAT.l=null;FAT.ms=performance.now()-FAT.t0;fatCortina(-1);if(FAT.pw){FAT.pw=false;FATX=true;try{prewarmGPU(FAT.f);}finally{FATX=false;}}}}
+/* CEO 25/11 luta: o que nascia no inicio da perseguicao e no 1o golpe nasce na carga: malha e texturas do Fujão (modelo entra na cena so durante o preparo) e a tela de efeito do golpe. */
+function lutaAquece(l){quizFxInit();$('quizfx').getContext('2d');if(BANDIDO.g&&!BANDIDO.g.scene.parent)l.push(BANDIDO.g.scene);
+  /* todo rosto HD ganha o rig na carga (antes so o Professor): a receita do rosto nao nasce mais na entrada. */
+  NPCS.forEach(function(n){if(n.m&&n.m.userData.profMesh)rigLiga(n,false);});
+  /* o rosto do heroi em 3a pessoa (abertura, luta) tambem ganha o rig na carga. */
+  try{if(!TP.m)tpCam(0);if(TP.m){RF_HEROI.m=TP.m;rigLiga(RF_HEROI,true);}}catch(e){console.warn('aquece heroi',e);}
+  /* lentes da frota: a malha nascia no 1o quadro de jogo; nasce aqui e entra no preparo. */
+  try{sinaisTick(S.time||0);}catch(e){console.warn('aquece lentes',e);}}
 function prewarmGPU(force){ if(LOADING&&LOADGO)return; /* A entrada ja aquece seus quadros, retornos tardios nao reiniciam o preparo. */if(SELFTEST&&!force)return;superficieSync();if(S.profCena)return;if(LOADING&&GENTE&&HD.policial&&!NPCBY.chefe)chefeSpawn();if(LOADING&&GENTE&&HD.toinho&&!NPCBY.toinho)toinhoModelo();
   // O vidro e o antebraço têm materiais próprios. Prepare o mesmo elenco que será desenhado durante a execução.
   if(LOADING&&CC.geo&&ARMA.src&&!FC_ASSET)fcAssets();
@@ -18925,6 +18936,7 @@ function prewarmGPU(force){ if(LOADING&&LOADGO)return; /* A entrada ja aquece se
   var fr=function(){renderer.shadowMap.needsUpdate=true;/* 25/11: o preparo tambem desenha a sombra, mesmo com ela em quadros alternados */if(composer)composer.render(0);else renderer.render(scene,camera);};
   // Os carros de chegada ainda estão fora da cidade; suas cópias usam estes mesmos materiais e texturas.
   var chegadas=LOADING&&CHEGADA_MODELOS?Object.values(CHEGADA_MODELOS).filter(m=>!m.parent):[];
+  if(LOADING)lutaAquece(chegadas);
   try{
     chegadas.forEach(m=>scene.add(m));
     scene.traverse(function(o){
@@ -24205,6 +24217,12 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
   T('CEO 25/11 travadinha do comeco: carga e preparo desenham a sombra (receitas do passe de sombra nascem no loading)',function(){
     tr(/renderer\.shadowMap\.needsUpdate=true/.test(String(prewarmGPU)),'preparo sem desenhar a sombra');tr(/autoUpdate&&!LOADING\)renderer\.shadowMap\.autoUpdate=false/.test(String(sombraQuadro)),'sombra alternada liga antes do fim da carga');
     var s0=SOMBRA2,q0=SOMBRA2_Q,au=renderer.shadowMap.autoUpdate,ld=LOADING,nu=renderer.shadowMap.needsUpdate;try{SOMBRA2=true;renderer.shadowMap.autoUpdate=true;LOADING=true;sombraQuadro(1,1);eq(renderer.shadowMap.autoUpdate,true,'desligou a sombra de todo quadro durante a carga');LOADING=false;sombraQuadro(2,1);eq(renderer.shadowMap.autoUpdate,false,'nao alternou depois da carga');}finally{SOMBRA2=s0;SOMBRA2_Q=q0;renderer.shadowMap.autoUpdate=au;LOADING=ld;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
+  T('CEO 25/11 catraca da carga: luta, rostos e lentes da frota nascem no loading, nao no primeiro uso',function(){
+    var f=String(lutaAquece);tr(/lutaAquece\(chegadas\)/.test(String(prewarmGPU)),'preparo nao aquece a luta');
+    tr(/quizFxInit\(\)/.test(f),'tela de efeito do golpe nasce no 1o golpe');tr(/BANDIDO\.g\.scene/.test(f),'modelo do Fujão fora do preparo');
+    tr(/profMesh\)rigLiga\(n,false\)/.test(f)&&/rigLiga\(RF_HEROI,true\)/.test(f),'rosto ganha o rig so na entrada');
+    tr(/setColorAt\(0,q\.cores\[0\]\)/.test(String(sinaisTick)),'lentes da frota nascem sem cor por copia');
+    tr(BANDIDO.g,'modelo do Fujão ausente');['skinWeight','uv'].forEach(function(k){var corpo=null;BANDIDO.g.scene.traverse(function(o){if(o.isSkinnedMesh)corpo=o;});tr(!corpo.geometry.attributes[k].normalized,k+' convertido so na perseguicao');});});
   T('CEO 24/11 jogo vivo: reacao a arma, tiro e atropelo fala na escolta da Marlene; papo de fundo segue calado',function(){
     var a=[seqBusy,cenaOn,papoMudo];try{fresh();S.phase='play';seqBusy=cenaOn=function(){return false;};clearSubs();papoMudo=function(){return true;};
       tr(ruaOcupada()&&ruaOcupada(0),'papo de fundo falou por cima da escolta');tr(!ruaOcupada(1),'atropelo calado na escolta');tr(!ruaOcupada(2),'arma apontada calada na escolta');
