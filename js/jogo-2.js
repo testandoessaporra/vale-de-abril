@@ -126,7 +126,7 @@ var SMALL=MOB||innerWidth<900;
 /* CEO 21h4x "serrilhando demais... deixa mais HD": celular nasce no 2 com resolucao alta (tela retina) e MSAA 4; chave nova vda_q2 zera rebaixamento velho */
 var QDEF=2,QL=QDEF; /* CEO 08/11 "4090 a 20 fps": nivel 3 (SAO) redesenhava a cidade 2x a mais: 2537 draws e 20,8 mi tris por quadro x 994 e 5,5 mi no nivel 2. Nivel 3 so com ?q=3 */
 (function(){var f=QS.get('q');if(f!=null&&f!==''){QL=Math.max(0,Math.min(3,+f|0));return;}try{var m=localStorage.getItem('vda_q2');if(m!=null)QL=Math.max(0,Math.min(QDEF,+m|0));}catch(e){}})();
-var QT=[{pr:1,sh:512,shadow:false,ms:2,bloom:false,grass:.4},{pr:1,sh:1024,shadow:true,ms:2,bloom:true,grass:.7},/* 09/11 perf: o 1 era igual ao 2 no computador (descer nao ganhava nada) */{pr:MOB?1.75:1.25,sh:1024,shadow:true,ms:4,bloom:true,grass:1},{pr:2,sh:2048,shadow:true,ms:4,bloom:true,grass:1,sao:true}];
+var QT=[{pr:1,sh:512,shadow:false,ms:2,bloom:false,grass:.4},{pr:1,sh:1024,shadow:true,ms:2,bloom:true,grass:.7},/* 09/11 perf: o 1 era igual ao 2 no computador (descer nao ganhava nada) */{pr:MOB?1.75:1.25,sh:1024,shadow:true,ms:4,bloom:true,grass:1},{pr:2,sh:2048,shadow:true,ms:4,bloom:true,grass:1,sao:false/* CEO 24/11 "sombras pretas em volta dos elementos": a oclusao manchava rosto e borda de prateleira e custava 3 ms por quadro em 4K (43,9 -> 50,5 fps sem ela, PC do CEO); fica so no Personalizado */}];
 if(MOB)QT=QT.map(function(t){return Object.assign({},t,{pr:1,sh:512,shadow:false,ms:0,bloom:false,grass:.25});});
 /* CEO 09/11 17h 'computador de batata rodando liso, nem que desative quase tudo': MODO BATATA abaixo do nivel 0. 1 = 75% da resolucao, 2 = 50%; sem sombra, sem brilho, sem MSAA, horizonte de celular (batSet). ?bat=1|2 forca; o aparelho lembra (vda_bat) */
 var QBAT=[null,{pr:.75,sh:512,shadow:false,ms:0,bloom:false,grass:.25},{pr:.5,sh:512,shadow:false,ms:0,bloom:false,grass:.035}],BAT=0,BAT0=0;
@@ -152,6 +152,13 @@ function qT(){var t=BAT?QBAT[BAT]:QT[QL];return GFX===7&&QX?Object.assign({},t,Q
 function qPost(){if(!BAT&&QL>0)return true;if(GFX!==7||!QX)return false;var t=QX.t;return !!(t.ms||t.bloom||t.sao);}
 /* placa fraca conhecida: 2 = desenho por software (sem placa), 1 = integrada/antiga */
 function gpuFraca(n){n=String(n||'');return /swiftshader|llvmpipe|software|basic render/i.test(n)?2:/intel[^,]*\b(hd|uhd) graphics|\bgma\b|mali-(4|t)|adreno \(tm\) ([2-4]\d\d|50\d|51\d)|powervr|videocore|radeon (hd|r[57]) /i.test(n)?1:0;}
+/* CEO 24/11 "faz um 2K upscale, para outros PCs tambem": o jogo desenha no maximo 2560x1440 pixels (3,7 milhoes) e o navegador amplia para a tela.
+   Tela 4K nativa custava 2,4x mais pixel por quadro e pesava a troca de grafico. HUD e texto sao HTML e seguem na resolucao da tela. ?nativo=1 desliga o teto; o preset PS5 Pro tambem (resolucao da tela). */
+var PX_TETO=2560*1440,PR_NATIVO=QS.get('nativo')==='1';
+function prTetoDe(w,h){return Math.sqrt(PX_TETO/(Math.max(64,w)*Math.max(64,h)));}
+/* CEO 24/11 "nao acabar com o meu 4K na TV": PS5 Pro (GFX 6) desenha na resolucao da tela; Automatico e os demais ficam no teto de 2K */
+/* medido no PC do CEO (RTX 4090, 4096x2160): 4K cheio 50,9 fps x 2K ampliado 47,9 no Automatico; placa forte nao ganha nada com o teto, entao fica na resolucao da tela */
+function prTeto(){return SELFTEST||PR_NATIVO||GFX===6||gpuForte(GPUN)?9:prTetoDe(innerWidth,innerHeight);}
 var PR=Math.min(window.devicePixelRatio||1,qT().pr);
 var renderer;
 try{
@@ -434,6 +441,7 @@ function initPost(){
   }catch(e){console.warn('post falhou, render direto',e);composer=null;}
 }
 function onResize(){
+  PR=Math.min(PR,prTeto()); /* ponytail: so desce; janela que encolhe so recupera nitidez na proxima troca de grafico (applyQ) */
   var w=SELFTEST?160:Math.max(64,innerWidth),h=SELFTEST?90:Math.max(64,innerHeight); /* provas visuais usam a resolucao real; selftest so confere a logica. */
   renderer.setPixelRatio(PR);
   renderer.setSize(w,h,false);
@@ -490,7 +498,7 @@ function gfxUI(){var o=$('optGfx');if(o)o.value=GFX;var t=gfxFoto().t,v={pr:t.pr
   [].forEach.call(document.querySelectorAll('#optGfxAv select'),function(s){var x=+v[s.dataset.gx],m=null;[].forEach.call(s.options,function(op){if(!m||Math.abs(op.value-x)<Math.abs(m.value-x))m=op;});if(m)s.value=m.value;});gfxRotulo();}
 /* CEO 16/11 (pu9) 'eu clico ali no grafico, ele ja troca; eu queria clicar para ver as opcoes': o clique de verdade ABRE a lista (mesmas opcoes do seletor de OPCOES) e so a escolha troca. O onclick antigo fica intacto para o teste automatico. */
 (function(){var b=document.getElementById('mGfx');if(!b)return;var d=document.createElement('div');d.id='mGfxOp';d.hidden=true;b.parentNode.insertBefore(d,b.nextSibling);
-function monta(){var o=document.getElementById('optGfx');d.innerHTML='';if(!o)return;for(var i=0;i<o.options.length;i++)(function(op){var x=document.createElement('button');x.type='button';x.textContent=(+op.value===GFX?'\u25b8 ':'')+op.text;x.style.cssText='font-size:.72em;padding:.25em 0 .25em 1.4em;display:block';x.onclick=function(){gfxSet(+op.value);d.hidden=true;};d.appendChild(x);})(o.options[i]);}
+function monta(){var o=document.getElementById('optGfx');d.innerHTML='';if(!o)return;for(var i=0;i<o.options.length;i++)(function(op){var x=document.createElement('button');x.type='button';x.textContent=(+op.value===GFX?'\u25b8 ':'')+op.text;x.style.cssText='font-size:.72em;padding:.25em 0 .25em 1.4em;display:block';x.onclick=function(){/* CEO 24/11: tocar na opcao que ja esta marcada so fecha a lista, nao reaplica nada */if(+op.value!==GFX||GFX===7)gfxSet(+op.value);d.hidden=true;};d.appendChild(x);})(o.options[i]);}
 b.addEventListener('click',function(e){e.stopImmediatePropagation();e.preventDefault();d.hidden=!d.hidden;if(!d.hidden)monta();},true);})();
 /* celular-grafico-maximo: modelos do computador no celular em todo nivel; GFX=3 (MZC) so no celular: sem batata e grama do computador */
 /* CEO 13/11 01h43 regra permanente: 'PS1 e PS2 nao pode trocar um modelo, nao pode trocar uma arvore'. Celular carrega os modelos do computador em qualquer nivel */
@@ -23886,7 +23894,7 @@ T('CEO 07/11 heroi: sem bigode (rosto liso), oculos escuro fixo e braco peludo n
     var tx=[].map.call(o.options,function(x){return x.text;});eq(tx.slice(0,7).join('|'),'Automático|PS1|PS2|PS3|PS4|PS5 Pro|Personalizado');tr(tx.indexOf('PS5')<0,'PS5 normal na lista');
     [[2,'PS1'],[1,'PS2'],[4,'PS3'],[5,'PS4'],[6,'PS5 PRO']].forEach(function(c){gfxSet(c[0],true);eq(b.firstChild.nodeValue,'GRÁFICO: '+c[1]);eq(o.value,String(c[0]));});
     gfxSet(2,true);eq(BAT,2);gfxSet(1,true);eq(BAT,1);gfxSet(4,true);eq(BAT,0);eq(QL,0);eq(qT().shadow,false,'PS3 com sombra');
-    gfxSet(5,true);eq(BAT,0);eq(QL,2);gfxSet(6,true);eq(QL,3);if(!MOB){eq(qT().sh,2048);eq(qT().sao,true,'PS5 Pro sem SAO');eq(qT().pr,2);}
+    gfxSet(5,true);eq(BAT,0);eq(QL,2);gfxSet(6,true);eq(QL,3);if(!MOB){eq(qT().sh,2048);eq(qT().sao,false,'CEO 24/11: PS5 Pro voltou a ligar a oclusao (manchas pretas em volta dos elementos, 3 ms por quadro em 4K)');eq(qT().pr,2);}
     var tela=o.textContent+$('optGfxAv').textContent+b.textContent;tr(!/\bIA\b/.test(tela)&&tela.indexOf('—')<0,'IA ou travessao na tela');
     tr(menuButtons($('opt')).length>=0&&$('optGfxAv').querySelectorAll('select').length===8,'menu avancado incompleto');
   }finally{gfxVolta(g0,b0,q0);}});
@@ -24181,6 +24189,10 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
       S.inCar=true;C0.v=20;tr(sombraQuadro(1,1)&&sombraQuadro(2,1)&&sombraQuadro(3,1),'carro rapido pulou quadro');C0.v=-20;tr(sombraQuadro(4,1)&&sombraQuadro(5,1),'re rapida pulou quadro');
       S.inCar=false;sun.shadow.map=null;tr(sombraQuadro(6,1)&&sombraQuadro(7,1),'sem mapa nao desenhou');
     }finally{sun.shadow.map=m0;SOMBRA2=s0;SOMBRA2_Q=q0;S.inCar=ic;C0.v=v0;renderer.shadowMap.autoUpdate=au;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
+  T('CEO 24/11 2K upscale: desenho nunca passa de 2560x1440 pixels em tela grande',function(){
+    [[4096,2160],[3840,2160],[5120,2880],[2731,1440],[2560,1440],[1920,1080],[1728,1117]].forEach(function(d){[1,1.25,1.5,2,3].forEach(function(dpr){var pr=Math.min(dpr,2,prTetoDe(d[0],d[1])),px=d[0]*d[1]*pr*pr;tr(px<=PX_TETO*1.001,'passou do teto em '+d+' dpr '+dpr+': '+Math.round(px));});});
+    eq(Math.min(1,prTetoDe(1920,1080)),1,'tela 1080p perdeu nitidez');eq(Math.min(1,prTetoDe(2560,1440)),1,'tela 1440p perdeu nitidez');tr(prTetoDe(4096,2160)<.66&&prTetoDe(4096,2160)>.64,'4K fora de 2K');
+    tr(/PR=Math\.min\(PR,prTeto\(\)\)/.test(String(onResize)),'onResize sem o teto');eq(prTeto(),9,'teto ligado no autoteste');tr(/GFX===6\|\|gpuForte\(GPUN\)\?9:/.test(String(prTeto)),'PS5 Pro ou placa forte perdeu a resolucao da tela');});
   T('sombra 06/11: sol encaixa no texel, sem flicker',function(){var tx=2*SHS/sun.shadow.mapSize.x;[[3.3,7.1],[41.7,-12.9],[-88.2,55.5]].forEach(function(p){sunFollow(p[0],p[1]);var a=sun.target.position.dot(SUNR)/tx,b=sun.target.position.dot(SUNU)/tx;tr(Math.abs(a-Math.round(a))<1e-3&&Math.abs(b-Math.round(b))<1e-3,'fora da grade');tr(Math.hypot(sun.target.position.x-p[0],sun.target.position.z-p[1])<tx*3+5,'longe do heroi');});sunFollow(P.x,P.z);});
   T('CENA LIVRE 11/11: veiculo em 5 pontos da cena sai da area e ator nao cruza veiculo',function(){
     fresh();exitCar(true);var c0={x:C0.x,z:C0.z,yaw:C0.yaw},mor=NPCBY.morador3,sv=mor&&cap2Save(mor);
