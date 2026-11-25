@@ -18892,9 +18892,11 @@ var RL={mag:null,magD:null,hand:null,slide:null,sx:0,p0:null,r0:null,bx:0,by:-.1
    Usa o mesmo alvo do jogo: compile na tela e render no composer geravam variantes de encoding diferentes. */
 var PREWT=0;
 var FAT={on:false,l:null,i:0,n:0,pw:false,f:true,sc:false,c:0,t0:0,ms:0,d:null},FATX=false;DBGW.__FAT=FAT;
+/* quadro com o jogo pausado: le o controle e segue o preparo da troca de grafico (chamado por frame) */
+function pausaQuadro(now){_last=now;try{pollPad(0);}catch(e){}if(FAT&&FAT.on)fatTick();}
 function fatCortina(k){if(FAT.sc){var e=document.getElementById('loadT');if(e&&k>=0)e.textContent='PREPARANDO… '+Math.round(k*100)+'%';return;}
   var d=FAT.d;if(k<0){if(d){d.style.opacity=0;setTimeout(function(){if(!FAT.on)d.style.display='none';},260);}return;}
-  if(!d){d=FAT.d=document.createElement('div');d.style.cssText='position:fixed;inset:0;z-index:99999;background:#0b0f14;display:flex;align-items:center;justify-content:center;transition:opacity .25s;pointer-events:none';d.innerHTML='<div style="width:220px;height:6px;background:#26303a;border-radius:3px"><i style="display:block;height:6px;width:0;background:#e8c35a;border-radius:3px"></i></div>';document.body.appendChild(d);}
+  if(!d){d=FAT.d=document.createElement('div');d.style.cssText='position:fixed;inset:0;z-index:99999;background:#0b0f14;display:flex;align-items:center;justify-content:center;transition:opacity .25s;pointer-events:none';d.style.flexDirection='column';d.innerHTML='<div style="width:220px;height:6px;background:#26303a;border-radius:3px"><i style="display:block;height:6px;width:0;background:#e8c35a;border-radius:3px"></i></div><b id="fatAviso" style="margin-top:14px;font:600 15px system-ui,sans-serif;letter-spacing:.08em;color:#e8c35a">APLICANDO GR\u00c1FICO\u2026</b>';document.body.appendChild(d);}
   d.style.display='flex';d.style.opacity=1;d.firstChild.firstChild.style.width=Math.round(k*100)+'%';}
 function fatIni(pw,carga){var c0=carga;if(LOADING)carga=true;/* menu e carga: fatias tambem, nunca o preparo inteiro de uma vez */
   if(SELFTEST||!carga&&(!S||S.phase!=='play')){if(pw){if(c0)prewarmGPU();else prewarmGPU(true);}return;}
@@ -24193,6 +24195,9 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
     [[4096,2160],[3840,2160],[5120,2880],[2731,1440],[2560,1440],[1920,1080],[1728,1117]].forEach(function(d){[1,1.25,1.5,2,3].forEach(function(dpr){var pr=Math.min(dpr,2,prTetoDe(d[0],d[1])),px=d[0]*d[1]*pr*pr;tr(px<=PX_TETO*1.001,'passou do teto em '+d+' dpr '+dpr+': '+Math.round(px));});});
     eq(Math.min(1,prTetoDe(1920,1080)),1,'tela 1080p perdeu nitidez');eq(Math.min(1,prTetoDe(2560,1440)),1,'tela 1440p perdeu nitidez');tr(prTetoDe(4096,2160)<.66&&prTetoDe(4096,2160)>.64,'4K fora de 2K');
     tr(/PR=Math\.min\(PR,prTeto\(\)\)/.test(String(onResize)),'onResize sem o teto');eq(prTeto(),9,'teto ligado no autoteste');tr(/GFX===6\|\|gpuForte\(GPUN\)\?9:/.test(String(prTeto)),'PS5 Pro ou placa forte perdeu a resolucao da tela');});
+  T('CEO 24/11 troca de grafico: preparo roda com o jogo pausado e a cortina avisa por escrito',function(){
+    var ft=fatTick,on=FAT.on,l0=_last,n=0;try{fatTick=function(){n++;};FAT.on=true;pausaQuadro(5);eq(n,1,'na pausa o preparo nao roda: a parada volta para o meio do jogo (1,6 s medido no PC)');FAT.on=false;pausaQuadro(6);eq(n,1,'preparou sem pedido');}finally{fatTick=ft;FAT.on=on;_last=l0;}
+    tr(/APLICANDO GR/.test(String(fatCortina)),'cortina sem aviso escrito');});
   T('sombra 06/11: sol encaixa no texel, sem flicker',function(){var tx=2*SHS/sun.shadow.mapSize.x;[[3.3,7.1],[41.7,-12.9],[-88.2,55.5]].forEach(function(p){sunFollow(p[0],p[1]);var a=sun.target.position.dot(SUNR)/tx,b=sun.target.position.dot(SUNU)/tx;tr(Math.abs(a-Math.round(a))<1e-3&&Math.abs(b-Math.round(b))<1e-3,'fora da grade');tr(Math.hypot(sun.target.position.x-p[0],sun.target.position.z-p[1])<tx*3+5,'longe do heroi');});sunFollow(P.x,P.z);});
   T('CENA LIVRE 11/11: veiculo em 5 pontos da cena sai da area e ator nao cruza veiculo',function(){
     fresh();exitCar(true);var c0={x:C0.x,z:C0.z,yaw:C0.yaw},mor=NPCBY.morador3,sv=mor&&cap2Save(mor);
@@ -28075,7 +28080,8 @@ function quadroPreviaMedido(now){
   if(SELFTEST||QS.get('shots')==='quiz2')return; /* ponytail: testes dirigem update/render; o loop concorrente so gastava GPU e tornava o resultado instavel. */
   requestAnimationFrame(frame);PVD.p0=PVD.p1;PVD.p1=renderer.info.programs.length;PVD.t0=PVD.t1;PVD.t1=renderer.info.memory.textures;menuTick(now);
   if(LOADING){try{pollPad(0);}catch(e){}if(loadTick(now)){_last=now;return;}}/* CEO 08/11 "joystick nao funciona no menu": controle lido ja na tela inicial */
-  if(pausado()){_last=now;try{pollPad(0);}catch(e){}return;}
+  /* CEO 24/11 "troquei o grafico e travou": o preparo da troca rodava so depois de fechar o menu, no meio do jogo (ate 2,1 s parado no PC). Agora roda aqui, com o jogo pausado e o aviso na tela. */
+  if(pausado()){pausaQuadro(now);return;}
   /* CEO 08/11 "camera lenta escalando": abaixo de 20 fps o teto de .05 s atrasava o relogio do jogo. Agora ate 2 passos de .05 (tempo real ate 10 fps) */
   var rdt=(now-_last)/1000,dt=Math.min(.1,Math.max(.001,rdt)),ns=dt>.05?2:1;dt/=ns;_last=now;_clk+=dt*ns;qWatch(rdt);
   var frameStart=performance.now();
