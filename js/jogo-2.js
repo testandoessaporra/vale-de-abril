@@ -22171,7 +22171,7 @@ function tfFreeVarre(n,x,z,yaw,gap,world){var h=n.bike?1:(n.len||4.4)/2,w=n.bike
 ['preparo','render1','render2','liberacao'].forEach(function(etapa){cargaTeste(function(){cargaRelogio(function(pinta,agora){
  LOADW=1;var n=ERRS.length,renders=0;
  if(etapa==='preparo')resetGame=function(){throw Error(etapa);};
- if(etapa.indexOf('render')===0)render=function(){if(++renders===+etapa.slice(-1))throw Error(etapa);};
+ if(etapa.indexOf('render')===0)render=function(){/* 25/11: a 1a chamada e o quadro a pe do aquecePe, que engole a propria falha de proposito */if(++renders===+etapa.slice(-1)+1)throw Error(etapa);};
  if(etapa==='liberacao')cutArm=function(){throw Error(etapa);};
  loadSolicita({},$('mNovo'));var inicio=agora();while(!LOADFAIL&&agora()-inicio<2992)pinta();
  eq(LOADFAIL,'entrada');tr(LOADING);eq(ERRS.length,n+1);eq($('loadTitulo').textContent,'Não consegui iniciar o jogo.');
@@ -24233,6 +24233,9 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
   T('CEO 25/11 travadinha do comeco: carga e preparo desenham a sombra (receitas do passe de sombra nascem no loading)',function(){
     tr(/renderer\.shadowMap\.needsUpdate=true/.test(String(prewarmGPU)),'preparo sem desenhar a sombra');tr(/autoUpdate&&!LOADING\)renderer\.shadowMap\.autoUpdate=false/.test(String(sombraQuadro)),'sombra alternada liga antes do fim da carga');
     var s0=SOMBRA2,q0=SOMBRA2_Q,au=renderer.shadowMap.autoUpdate,ld=LOADING,nu=renderer.shadowMap.needsUpdate;try{SOMBRA2=true;renderer.shadowMap.autoUpdate=true;LOADING=true;sombraQuadro(1,1);eq(renderer.shadowMap.autoUpdate,true,'desligou a sombra de todo quadro durante a carga');LOADING=false;sombraQuadro(2,1);eq(renderer.shadowMap.autoUpdate,false,'nao alternou depois da carga');}finally{SOMBRA2=s0;SOMBRA2_Q=q0;renderer.shadowMap.autoUpdate=au;LOADING=ld;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
+  T('CEO 25/11 saida do carro: um quadro a pe roda atras da capa na entrada e devolve o estado',function(){
+    tr(/if\(!o\.preparado\)\{aquecePe\(\);/.test(String(loadEntra)),'entrada nao aquece o quadro a pe');
+    fresh();var ph=S.phase,ic=S.inCar,r0=render;try{aquecePe();eq(S.phase,ph,'fase mudou');eq(S.inCar,ic,'saiu do carro de verdade');render=function(){throw Error('pe');};aquecePe();eq(S.inCar,ic,'falha do aquecimento vazou');}finally{render=r0;fresh();}});
   T('CEO 25/11 catraca da carga: luta, rostos e lentes da frota nascem no loading, nao no primeiro uso',function(){
     var f=String(lutaAquece);tr(/lutaAquece\(chegadas\)/.test(String(prewarmGPU)),'preparo nao aquece a luta');
     tr(/quizFxInit\(\)/.test(f),'tela de efeito do golpe nasce no 1o golpe');tr(/BANDIDO\.g\.scene/.test(f),'modelo do Fujão fora do preparo');
@@ -28006,9 +28009,12 @@ document.addEventListener('visibilitychange',loadVisivel);
 function loadSolicita(o,b){if(LOADGO||LOADFAIL)return;LOADGO=o;LOADGO.inicio=performance.now();LOADENTRA=false;b.firstChild.nodeValue='ENTRANDO...';
   $('mNovo').disabled=$('mCont').disabled=true;$('load').classList.add('entrando');$('loadTitulo').textContent='ENTRANDO...';
   try{audioInit();AUDIO_EMBED.load('car-door','audio/sfx/car-door.mp3');}catch(e){loadErro('Não consegui iniciar o jogo.',e);}}
+/* CEO 25/11 saida do carro: o 1o quadro a pe custava 175 ms no Mac (217 a 388 no maximo), so na placa e so na 1a vez.
+   Um quadro inteiro a pe (logica + desenho) roda aqui, atras da capa; a entrada refaz o estado logo depois (resetGame ou save). */
+function aquecePe(){var ph=S.phase,ic=S.inCar;try{S.phase='play';S.inCar=false;update(.016);fx(.016,_clk);render(0,_clk);}catch(e){console.warn('aquece a pe',e);}finally{S.phase=ph;S.inCar=ic;}}
 function loadEntra(){try{var o=LOADGO,ld=$('load');if(!o)return;
     // ponytail: tres etapas no loop existente, sem fila, timer ou alocacao por quadro.
-    if(!o.preparado){if(AC){if(AU.fxg)AU.fxg.gain.value=1;if(AU.amb)AU.amb.gain.value=.5;if(AU.mus)AU.mus.gain.value=.3;}lmusFim();ld.classList.remove('menu');
+    if(!o.preparado){aquecePe();if(AC){if(AU.fxg)AU.fxg.gain.value=1;if(AU.amb)AU.amb.gain.value=.5;if(AU.mus)AU.mus.gain.value=.3;}lmusFim();ld.classList.remove('menu');
       if(o.ck)saveCarrega(o);else{saveApaga();resetGame(false);cutUpdate(0);}vozPre(DIALOGO.cena);o.preparado=1;return;}
     if(o.preparado<3){if(o.ck){for(var j=0;MR.motos&&j<MR.motos.length;j++)mrSegue(MR.motos[j],0);fx(0,_clk);}render(0,_clk);o.preparado++;return;}
     if(!o.revela){
