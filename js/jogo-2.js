@@ -490,7 +490,11 @@ function gfxSet(n,agora){n=+n|0;if(n===3&&!MOB)n=5;if(n<0||n>7)n=0;if(n===7&&!QX
   QM.pend=QM.pb=null;QM.w=QM.t=QM.f=QM.r=QM.mw=QM.mt=QM.mf=QM.mr=0;var p=n===7?QX:GFXP[n]||GFXP[gfxAuto()];QL=p.q;MZC=n===3;
   /* jogando: sombra, SAO, brilho e superficie esperam a pausa (QM.pend); agora=true so para quem precisa na hora */
   batSet(p.b,!agora&&!!S&&S.phase==='play');if(MZC)mzCarrega();gfxUI();}
-function gfxRotulo(){var b=$('mGfx');if(b)b.firstChild.nodeValue='GRÁFICO: '+GFXN[GFX];}
+/* CEO 25/11 'troquei 3 graficos e travou': na tela inicial a escolha so fica anotada (GFXQ) e o rotulo muda na hora; o preparo roda 1 vez so, ao entrar, atras do ENTRANDO.
+   Antes cada toque preparava tudo ali mesmo: 13 s parado no PS1, 3 s no PS2 (Mac) e as receitas de desenho acumulavam ate a placa cair. */
+var GFXQ=null;
+function gfxAplicaPend(){var q=GFXQ;GFXQ=null;if(q!=null&&(q!==GFX||q===7))gfxSet(q);}
+function gfxRotulo(){var b=$('mGfx');if(b)b.firstChild.nodeValue='GRÁFICO: '+GFXN[GFXQ!=null?GFXQ:GFX];}
 /* fotografia do que esta na tela, base do Personalizado */
 function gfxFoto(){var t=Object.assign({sao:false},qT());t.sao=!!t.sao&&qPost();if(t.vis==null)t.vis=BAT||MOB?0:2;if(t.npc==null)t.npc=BAT>1?0:BAT?1:2;return gfxLimpa({b:BAT,q:QL,t:t});}
 /* item avulso do menu avancado: vira Personalizado com o resto igual ao que estava */
@@ -499,7 +503,7 @@ function gfxUI(){var o=$('optGfx');if(o)o.value=GFX;var t=gfxFoto().t,v={pr:t.pr
   [].forEach.call(document.querySelectorAll('#optGfxAv select'),function(s){var x=+v[s.dataset.gx],m=null;[].forEach.call(s.options,function(op){if(!m||Math.abs(op.value-x)<Math.abs(m.value-x))m=op;});if(m)s.value=m.value;});gfxRotulo();}
 /* CEO 16/11 (pu9) 'eu clico ali no grafico, ele ja troca; eu queria clicar para ver as opcoes': o clique de verdade ABRE a lista (mesmas opcoes do seletor de OPCOES) e so a escolha troca. O onclick antigo fica intacto para o teste automatico. */
 (function(){var b=document.getElementById('mGfx');if(!b)return;var d=document.createElement('div');d.id='mGfxOp';d.hidden=true;b.parentNode.insertBefore(d,b.nextSibling);
-function monta(){var o=document.getElementById('optGfx');d.innerHTML='';if(!o)return;for(var i=0;i<o.options.length;i++)(function(op){var x=document.createElement('button');x.type='button';x.textContent=(+op.value===GFX?'\u25b8 ':'')+op.text;x.style.cssText='font-size:.72em;padding:.25em 0 .25em 1.4em;display:block';x.onclick=function(){/* CEO 24/11: tocar na opcao que ja esta marcada so fecha a lista, nao reaplica nada */if(+op.value!==GFX||GFX===7)gfxSet(+op.value);d.hidden=true;};d.appendChild(x);})(o.options[i]);}
+function monta(){var o=document.getElementById('optGfx');d.innerHTML='';if(!o)return;for(var i=0;i<o.options.length;i++)(function(op){var x=document.createElement('button');x.type='button';x.textContent=(+op.value===(GFXQ!=null?GFXQ:GFX)?'\u25b8 ':'')+op.text;x.style.cssText='font-size:.72em;padding:.25em 0 .25em 1.4em;display:block';x.onclick=function(){/* CEO 24/11: tocar na opcao que ja esta marcada so fecha a lista, nao reaplica nada */if(LOADING&&!LOADGO){GFXQ=+op.value;gfxRotulo();}else if(+op.value!==GFX||GFX===7)gfxSet(+op.value);d.hidden=true;};d.appendChild(x);})(o.options[i]);}
 b.addEventListener('click',function(e){e.stopImmediatePropagation();e.preventDefault();d.hidden=!d.hidden;if(!d.hidden)monta();},true);})();
 /* celular-grafico-maximo: modelos do computador no celular em todo nivel; GFX=3 (MZC) so no celular: sem batata e grama do computador */
 /* CEO 13/11 01h43 regra permanente: 'PS1 e PS2 nao pode trocar um modelo, nao pode trocar uma arvore'. Celular carrega os modelos do computador em qualquer nivel */
@@ -24233,8 +24237,17 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
   T('CEO 25/11 travadinha do comeco: carga e preparo desenham a sombra (receitas do passe de sombra nascem no loading)',function(){
     tr(/renderer\.shadowMap\.needsUpdate=true/.test(String(prewarmGPU)),'preparo sem desenhar a sombra');tr(/autoUpdate&&!LOADING\)renderer\.shadowMap\.autoUpdate=false/.test(String(sombraQuadro)),'sombra alternada liga antes do fim da carga');
     var s0=SOMBRA2,q0=SOMBRA2_Q,au=renderer.shadowMap.autoUpdate,ld=LOADING,nu=renderer.shadowMap.needsUpdate;try{SOMBRA2=true;renderer.shadowMap.autoUpdate=true;LOADING=true;sombraQuadro(1,1);eq(renderer.shadowMap.autoUpdate,true,'desligou a sombra de todo quadro durante a carga');LOADING=false;sombraQuadro(2,1);eq(renderer.shadowMap.autoUpdate,false,'nao alternou depois da carga');}finally{SOMBRA2=s0;SOMBRA2_Q=q0;renderer.shadowMap.autoUpdate=au;LOADING=ld;renderer.shadowMap.needsUpdate=nu;sunFollow(camera.position.x,camera.position.z);}});
+  T('CEO 25/11 painel de escolha sem fundo desfocado (travada na 1a abertura)',function(){
+    var d=$('dec'),c=d.className;try{d.className='ov on';eq(getComputedStyle(d).backdropFilter||'none','none','painel com desfoque');var k=d.querySelector('.card');if(k)eq(getComputedStyle(k).backdropFilter||'none','none','cartao com desfoque');
+      d.className='ov on hud-classe';eq(getComputedStyle(d).backdropFilter||'none','none','painel da classe com desfoque');}finally{d.className=c;}});
+  T('CEO 25/11 grafico na tela inicial: a escolha so anota, o preparo roda 1 vez ao entrar',function(){
+    var g0=GFX,q0=GFXQ,ld=LOADING,go=LOADGO,gs=gfxSet,n=0;try{LOADING=true;LOADGO=null;$('mGfx').click();var bs=$('mGfxOp').querySelectorAll('button');tr(bs.length>=6,'lista sem as opcoes');
+      gfxSet=function(v){n++;};bs[1].click();bs[2].click();bs[4].click();eq(n,0,'preparou na tela inicial');eq(GFX,g0,'trocou antes de entrar');eq(GFXQ,+$('optGfx').options[4].value);tr($('mGfx').textContent.indexOf(GFXN[GFXQ])>0,'rotulo nao mostra a escolha');
+      gfxAplicaPend();eq(n,1,'nao aplicou 1 vez ao entrar');eq(GFXQ,null);gfxAplicaPend();eq(n,1,'aplicou de novo');
+      tr(/o\.gfx=1;gfxAplicaPend\(\)/.test(String(loadEntra)),'entrada nao aplica a escolha');
+    }finally{gfxSet=gs;GFXQ=q0;LOADING=ld;LOADGO=go;$('mGfxOp').hidden=true;gfxRotulo();}});
   T('CEO 25/11 saida do carro: um quadro a pe roda atras da capa na entrada e devolve o estado',function(){
-    tr(/if\(!o\.preparado\)\{aquecePe\(\);/.test(String(loadEntra)),'entrada nao aquece o quadro a pe');
+    tr(/aquecePe\(\);if\(AC\)/.test(String(loadEntra)),'entrada nao aquece o quadro a pe');
     fresh();var ph=S.phase,ic=S.inCar,r0=render;try{aquecePe();eq(S.phase,ph,'fase mudou');eq(S.inCar,ic,'saiu do carro de verdade');render=function(){throw Error('pe');};aquecePe();eq(S.inCar,ic,'falha do aquecimento vazou');}finally{render=r0;fresh();}});
   T('CEO 25/11 catraca da carga: luta, rostos e lentes da frota nascem no loading, nao no primeiro uso',function(){
     var f=String(lutaAquece);tr(/lutaAquece\(chegadas\)/.test(String(prewarmGPU)),'preparo nao aquece a luta');
@@ -28014,7 +28027,7 @@ function loadSolicita(o,b){if(LOADGO||LOADFAIL)return;LOADGO=o;LOADGO.inicio=per
 function aquecePe(){var ph=S.phase,ic=S.inCar;try{S.phase='play';S.inCar=false;update(.016);fx(.016,_clk);render(0,_clk);}catch(e){console.warn('aquece a pe',e);}finally{S.phase=ph;S.inCar=ic;}}
 function loadEntra(){try{var o=LOADGO,ld=$('load');if(!o)return;
     // ponytail: tres etapas no loop existente, sem fila, timer ou alocacao por quadro.
-    if(!o.preparado){aquecePe();if(AC){if(AU.fxg)AU.fxg.gain.value=1;if(AU.amb)AU.amb.gain.value=.5;if(AU.mus)AU.mus.gain.value=.3;}lmusFim();ld.classList.remove('menu');
+    if(!o.preparado){if(!o.gfx){o.gfx=1;gfxAplicaPend();}if(FAT&&FAT.on){render(0,_clk);return;}/* grafico escolhido na tela inicial: prepara aqui, em fatias, antes de montar a entrada */aquecePe();if(AC){if(AU.fxg)AU.fxg.gain.value=1;if(AU.amb)AU.amb.gain.value=.5;if(AU.mus)AU.mus.gain.value=.3;}lmusFim();ld.classList.remove('menu');
       if(o.ck)saveCarrega(o);else{saveApaga();resetGame(false);cutUpdate(0);}vozPre(DIALOGO.cena);o.preparado=1;return;}
     if(o.preparado<3){if(o.ck){for(var j=0;MR.motos&&j<MR.motos.length;j++)mrSegue(MR.motos[j],0);fx(0,_clk);}render(0,_clk);o.preparado++;return;}
     if(!o.revela){
