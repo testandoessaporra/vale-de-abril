@@ -14195,9 +14195,21 @@ function estBairro(p,i){if(i===UNO_SPOT){parkLivre(p);return;}
   p[2]=ry0;p[ax]=c+lado*(4.5-1.03);p[ay]=al0;p.estFalhou=1;estFixa(p);}
 function estFixa(p){var b=parkCaixa(p);if(p.col){p.col[0]=b[0];p.col[1]=b[1];p.col[2]=b[2];p.col[3]=b[3];}
   if(EST_SOBE){var r=estRodas(p);p.y0=Math.max(r.y,parkY(p));p.roll=r.roll;}}
+var PARKPEND=[],PARKT=0;
 (function(){var mix=['art-hatch70','rgs-sedan','rgs-hatchback','art-hatch70','rgs-pickup','rgs-hatchback','art-hatch70','rgs-sedan','rgs-van','art-hatch70','rgs-hatchback','rgs-sedan','art-hatch70','rgs-pickup'];
   PCARS.forEach(function(p,i){estBairro(p,i);var g=new THREE.Group();g.position.set(p[0],p.y0!=null?p.y0:parkY(p),p[1]);/* CEO 13/11: encostado no meio-fio, jeito pelo bairro */g.rotation.y=p[2];g.rotation.z=p.roll||0;scene.add(g);p.m=g;if(i===UNO_SPOT)return unoSpawn(g);/* CEO 13/11 (ms): vagas IA_SPOTS tambem viram o carro classico */ /* CEO 06/11 23h5x: Fusca, Opala, Brasilia e Gol IA ficam ("tava legal"), so o civil generico sai */if(!CIVIS){g.visible=false;p.col.ativo=false;return;}
-    iaCivil(g,i,0);});})();
+    if(MOB&&!SELFTEST&&!IA_SPOTS[i]){g.visible=false;PARKPEND.push({p:p,i:i});return;}iaCivil(g,i,0);});PARKPEND.forEach(function(item){item.p.col.ativo=false;});})();
+function parkPendTick(dt){
+  if(!PARKPEND.length)return;PARKT+=dt;if(PARKT<1)return;PARKT=0;
+  var jogador=(S.inCar&&CAR&&CAR.position)||P,criadas=0;
+  camera.updateMatrixWorld();SBFR.setFromProjectionMatrix(SBMAT.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+  for(var i=0;i<PARKPEND.length&&criadas<2;i++){
+    var item=PARKPEND[i];if(!item)continue;var p=item.p,d=dist2(jogador.x,jogador.z,p[0],p[1]);if(d>=70)continue;
+    SBSFERA.center.set(p[0],surfaceY(p[0],p[1])+.9,p[1]);if(d<=40&&SBFR.intersectsSphere(SBSFERA))continue;
+    iaCivil(p.m,item.i,0);if(!p.parkBloq){p.m.visible=true;p.col.ativo=true;}PARKPEND[i]=null;criadas++;
+  }
+  if(PARKPEND.every(function(item){return !item;}))PARKPEND=[];
+}
 /* CEO 06/11 23h35 (Opala enfiado no muro): vaga estacionada anda para o meio da rua ate a caixa sair da calcada e de toda parede do COL */
 function parkCaixa(p){var ca=Math.abs(Math.cos(p[2])),sa=Math.abs(Math.sin(p[2])),hx=(1.9*ca+4.4*sa)/2,hz=(1.9*sa+4.4*ca)/2;return [p[0]-hx,p[1]-hz,p[0]+hx,p[1]+hz];}
 function parkRuim(p){var b=parkCaixa(p),cars=PCARS.map(function(q){return q.col;});
@@ -15233,7 +15245,7 @@ function endCut(){
   /* CEO 04/11: a abertura termina na estrada de frente para o morro, sem pulo ate o mercadinho; a viola segue no radio */
   C0.x=0;C0.z=92;C0.yaw=0;C0.v=0;C0.sl=0;C0.steer=0;L.yaw=0;L.pitch=-.04;S.funk=true;S.stn=0;PAT=STATIONS[0];
   // ponytail: desliga o estacionado e sua colisao; o trafego segue longe da chegada.
-  PCARS.forEach(function(p){if(dist2(p[0],p[1],C0.x,C0.z)<5){p.m.visible=false;p.col.ativo=false;}});
+  PCARS.forEach(function(p){if(p&&dist2(p[0],p[1],C0.x,C0.z)<5){if(p.m)p.m.visible=false;p.col.ativo=false;p.parkBloq=true;}});
   TRAF.forEach(function(n){if(dist2(n.x,n.z,C0.x,C0.z)<5){var q;do{n.s+=8;q=n.path.at(n.s);}while(dist2(q.x,q.z,C0.x,C0.z)<5);n.x=q.x;n.z=q.z;n.m.position.set(n.x,surfaceY(n.x,n.z),n.z);}});
   P1.visible=false;placeCar();placeCam();
   saveCk('marlene');
@@ -20783,7 +20795,7 @@ function npcPapo(dt){var q=PAPO.on;
 function papoFim(){var q=PAPO.on;if(!q)return;PAPO.on=null;[q.a,q.b].forEach(function(n){n.hold=!!n.papoHold;n.papoHold=null;});if(S.falante===q.a||S.falante===q.b)S.falante=null;}
 function sacosAtualiza(dt){if(!S.inCar&&P.spd>.18)sacosContato(P.x,P.z,P.y,0,0,.29,.35);sacosPasso(dt);}
 function sbxUpdate(dt){
-  if(MOB)sbxPendTick(dt);
+  if(MOB){sbxPendTick(dt);parkPendTick(dt);}
   npcFala(dt);npcPapo(dt);
   NPCS.forEach(function(n){if(/^sb_[cb]/.test(n.id)&&n.m.visible)ostTick(n,dist2(n.x,n.z,P.x,P.z));});
   NPCS.forEach(function(n){if(n.down&&n.fall!==undefined&&n.fall<1){if(n.fall===0)corpoLado(n);n.fall=Math.min(1,n.fall+dt/.3);var f=n.fall;n.m.rotation.x=-1.45*f*f;n.m.position.y=n.y+.15*f;}});
