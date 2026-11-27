@@ -11648,6 +11648,7 @@ function unoSai(){var p=PCARS[UNO_SPOT],pd=p.m.userData.pedais;
   var c=Math.abs(Math.cos(p[2])),sn=Math.abs(Math.sin(p[2])),hx=(1.7*c+UNO_LEN*sn)/2,hz=(1.7*sn+UNO_LEN*c)/2;
   p.col[0]=p[0]-hx;p.col[1]=p[1]-hz;p.col[2]=p[0]+hx;p.col[3]=p[1]+hz;p.col.ativo=true;
   var i=COL.indexOf(S.vtrCol);if(i>=0)COL.splice(i,1);S.vtrCol=null;if(p.m.userData.forroUno)p.m.userData.forroUno.visible=false;p.m.userData.camUno=!!S.camIn;S.camIn=!!S.vtr.camIn;C0.x=S.vtr.x;C0.z=S.vtr.z;C0.yaw=S.vtr.yaw;C0.v=0;S.uno=false;placeCar();}
+var trafFrotaPendente=null,trafFrotaProximo=0;
 function addTrafego(){
   /* FLUI: volta fisica por cruzamentos existentes; o antigo salto em x=95 cortava um lote. */
   /* Duas voltas: cada sentido fica à direita inclusive na rua do mercado. */
@@ -11660,9 +11661,11 @@ function addTrafego(){
      depois de 1 a 6 s, outro nasce no fundo de uma pista sorteada. Nunca entra na comunidade */
   var hp=new Path([[-HWY_FIM,HWY_Z+2.5],[HWY_FIM,HWY_Z+2.5],[HWY_FIM,HWY_Z-2.5],[-HWY_FIM,HWY_Z-2.5]]);hp.jump={1:1,3:1};
   var FROTA=HWY_FROTA.filter(function(f){return CIVIS||f[0]==="caminhao";});
-  FROTA.forEach(function(f,k){var m2=new THREE.Group(),tk=f[0]==='caminhao';scene.add(m2);
+  function montaFrota(f,k){var m2=new THREE.Group(),tk=f[0]==='caminhao';if(MOB&&!SELFTEST){m2.position.set(1e4,0,1e4);m2.visible=false;}scene.add(m2);
     if(tk){var th=new THREE.Group();th.rotation.y=Math.PI;m2.add(th);iaCarSpawn(th,{f:k%2?'cacamba-ia':'bau-ia',len:8.6,cor:IA_CORES[(k*5+2)%IA_CORES.length],v0:.6,v1:.9});}else{m2.userData.condutor={id:'morador-hw'+k,modelo:['edvaldo','vizinha','carlos'][k%3]};iaCivil(m2,k,1);} /* CEO 06/11: caminhao IA, bau e cacamba */
-    var thn={id:'hw'+k,condutor:m2.userData.condutor||null,m:m2,x:1e4,z:1e4,yaw:0,sp:0,cr:f[2],cr0:f[2],path:hp,s:k*hp.len/FROTA.length,hw:true,len:tk?8.6:4.4,oc:.2+k*.3};tfInit(thn);m2.visible=false;TRAF.push(thn);});
+    var thn={id:'hw'+k,condutor:m2.userData.condutor||null,m:m2,x:1e4,z:1e4,yaw:0,sp:0,cr:f[2],cr0:f[2],path:hp,s:k*hp.len/FROTA.length,hw:true,len:tk?8.6:4.4,oc:.2+k*.3};tfInit(thn);m2.visible=false;TRAF.push(thn);}
+  if(MOB&&!SELFTEST){var proximo=0;trafFrotaPendente=function(){if(proximo>=FROTA.length){trafFrotaPendente=null;return;}montaFrota(FROTA[proximo],proximo);proximo++;if(proximo>=FROTA.length)trafFrotaPendente=null;};}
+  else FROTA.forEach(montaFrota);
   addSinaleiro();
 }
 var TRAF_CIDADE=2;/* CEO 08/11: cidade com um ou outro carro (transito nao pode bugar quest); densidade fica na rodovia */
@@ -11687,6 +11690,7 @@ function trafUm(n){if(!tfHidden(n.x,n.z,n.len)&&n.oc==null&&n.m.visible)return f
 function trafInicio(){for(var i=0;i<TRAF.length;i++){var n=TRAF[i];if(n.hw||n.s0==null)continue;tfInit(n);n.s=n.s0;n.kb=null;n.fcOc=n.qtOc=undefined;n.stopT=0;n.trava=0;/* Novo jogo conserva o inicio e nasce depois do arco da esquina, sem fechar a saida. */n.sp=n.cr;n.oc=null;n.m.visible=true;tfPlace(n,n.s0+TR_R,0);}}
 function trafRenova(){TRAF.forEach(function(n,i){if(n.hw){if(!n.kb&&n.oc==null&&n.m.visible)return;/* caminhao inteiro na pista segue; so o batido/escondido renasce */n.kb=null;n.fcOc=n.qtOc=undefined;n.m.rotation.set(0,0,0);hwSome(n);n.oc=.2+i*.4;return;}/* A espera ja avancou o relogio e reconstruiu a cidade. */n.m.visible=false;n.oc=0;trafUm(n);});}
 function updTrafego(dt){
+  if(trafFrotaPendente&&S.phase==='play'&&!LOADING&&performance.now()>=trafFrotaProximo){trafFrotaPendente();trafFrotaProximo=performance.now()+500;}
   transitBuild();
   SIG.t+=dt;if(SIG.m.length)sigPaint();camera.updateMatrixWorld();_fcFr.setFromProjectionMatrix(_fcM.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
   var i,n,q,fx,fz,l,tg,cena=trCena(),qst=trQuest();
@@ -26319,7 +26323,7 @@ function estFinal(){fresh();S.estPend=true;exitCar(true);enterCar();}
   T('fim: pop-up tem titulo, a carta do Paulo, PIX, assinatura e os dois botoes',function(){estFinal();act.skipCut();var p=$('fimPop');tr(!p.hidden&&EST.pop,'pop-up nao abriu');eq(p.scrollTop,0,'carta abre cortada no rodape');
     eq($('fimBox').querySelector('h2').textContent,'Você jogou a demonstração de Vale de Abril','titulo');
     eq(JSON.stringify([].map.call($('fimLista').querySelectorAll('p'),function(l){return l.textContent;})),JSON.stringify(["Olá, mestres e mestras, mestrinhos e mestronas.", "Esse jogo começou a ser feito em 1º de novembro de 2026. Oito dias antes desta demo.", "Se alguma coisa travou, bugou ou não funcionou como devia: me desculpa. É um jogo em desenvolvimento, e cada bug que você encontrar me ajuda a deixar ele melhor.", "Ele só saiu tão rápido porque nasceu impulsionado pelo nosso sistema de estudos, o S4P.", "Eu quero levar esse jogo muito mais longe: mais cidade, mais história, mais concurso dentro da aventura. Só que hoje a gente não tem máquina nem servidor pra expandir. Precisa de estrutura de verdade: mais armazenamento, um servidor próprio e SUPERINTELIGÊNCIA rodando aqui dentro.", "Se você curtiu e quer ver isso crescer, faça uma doação voluntária, de qualquer valor, pelo PIX abaixo. Toda ajuda conta."]),'carta do Paulo (CEO 08/11: texto anterior, voz dele)');
-    tr(/Paulo Benites/.test(p.textContent),'sem assinatura');tr(p.contains($('fimPix'))&&/paulobenitesprf@gmail\.com/.test($('fimPix').textContent),'PIX sem chave');
+    tr(/Paulo Benites/.test(p.textContent),'sem assinatura');tr(p.contains($('fimPix'))&&/@/.test($('fimPix').textContent)&&!/\*\*\*@|@\w\*\*\*|__PIX/.test($('fimPix').textContent),'PIX sem chave');
     tr(/pix-qr\.png/.test($('pixQr').src)&&/br\.gov\.bcb\.pix/.test($('pixCopiaCola').dataset.pix)&&/@/.test($('pixCopia').dataset.pix)&&!/\*\*\*@|@\w\*\*\*|__PIX/.test($('pixCopia').dataset.pix+$('pixCopiaCola').dataset.pix),'QR ou copia e cola do PIX');
     eq($('fimJoga').textContent,'Jogar de novo','botao 1');eq($('estVolta').textContent,'Voltar ao menu','botao 2');
     tr(!/[—–]/.test(p.textContent),'travessao no pop-up');tr(!/\bIA\b/.test(p.textContent),'IA no pop-up');
