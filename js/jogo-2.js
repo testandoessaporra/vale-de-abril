@@ -58,6 +58,22 @@ function textureLoadCache(load){
   };
 }
 if(MOB)THREE.TextureLoader.prototype.load=textureLoadCache(THREE.TextureLoader.prototype.load);
+if(MOB&&THREE.GLTFLoader){
+  var parseGLTFMob=THREE.GLTFLoader.prototype.parse;
+  THREE.GLTFLoader.prototype.parse=function(data,path,ok,err){
+    return parseGLTFMob.call(this,data,path,function(gltf){
+      var imagens=new WeakMap();
+      gltf.scenes.forEach(function(s){s.traverse(function(o){
+        var mats=Array.isArray(o.material)?o.material:[o.material];
+        mats.forEach(function(m){if(!m)return;Object.keys(m).forEach(function(k){
+          var t=m[k],img=t&&t.isTexture&&t.image;if(!img||!(img.width>TEX_MOB||img.height>TEX_MOB))return;
+          var reduzida=imagens.get(img);if(!reduzida){capTex(t,TEX_MOB);reduzida=t.image;imagens.set(img,reduzida);}else{t.dispose();t.image=reduzida;t.needsUpdate=true;}
+        });});
+      });});
+      ok(gltf);
+    },err);
+  };
+}
 if(MOB)document.body.classList.add('mob');
 
 
@@ -147,7 +163,7 @@ function gfxFraco(){var w=gpuFraca(GPUN);if(!w&&((navigator.deviceMemory||8)<=2|
 /* Automatico: sem placa 2 -> PS1, fraca ou celular -> PS2, comum e forte -> PS4 */
 function gfxAuto(){var w=gfxFraco();return w>1?2:w?1:5;}
 /* === PRESETS fim === */
-(function(){var c=function(v){return Math.max(0,Math.min(2,+v|0));},f=QS.get('bat');if(MOB){GFX=BAT=2;}else if(f!=null&&f!==''){GFX=BAT=c(f);}else if(!QS.get('q')&&!SELFTEST){try{var g=gfxLe(),p;GFX=g.g;QX=g.x;MZC=GFX===3;p=GFX===7?QX:GFXP[GFX];if(p){BAT=p.b;QL=p.q;}else BAT=c(localStorage.getItem('vda_bat'));}catch(e){}}if(BAT)QL=0;BAT0=BAT;})();
+(function(){var c=function(v){return Math.max(0,Math.min(2,+v|0));},f=QS.get('bat'),gq=+QS.get('gfx');if(MOB){GFX=BAT=2;}else if(GFXP[gq]){GFX=gq;BAT=GFXP[gq].b;QL=GFXP[gq].q;MZC=false;}/* CEO 26/11: link de teste ?gfx=4 PC medio, ?gfx=6 PC potente */else if(f!=null&&f!==''){GFX=BAT=c(f);}else if(!QS.get('q')&&!SELFTEST){try{var g=gfxLe(),p;GFX=g.g;QX=g.x;MZC=GFX===3;p=GFX===7?QX:GFXP[GFX];if(p){BAT=p.b;QL=p.q;}else BAT=c(localStorage.getItem('vda_bat'));}catch(e){}}if(BAT)QL=0;BAT0=BAT;})();
 function qT(){if(MOB)return QBAT[2];var t=BAT?QBAT[BAT]:QT[QL];return GFX===7&&QX?Object.assign({},t,QX.t):t;}
 /* composer (MSAA, brilho, SAO, filtro final): niveis 1+ fora do batata; Personalizado liga quando pede algum desses */
 function qPost(){if(MOB)return false;if(!BAT&&QL>0)return true;if(GFX!==7||!QX)return false;var t=QX.t;return !!(t.ms||t.bloom||t.sao);}
@@ -515,7 +531,7 @@ function mzCai(){if(GFX!==3)return;gfxSet(1);say('Gráfico ajustado para o seu a
 function mzVigia(rdt){if(!S||S.phase!=='play'||document.hidden){QM.mt=QM.mf=0;return;}if(QM.mw<2){QM.mw+=rdt;return;}
   QM.mt+=rdt;QM.mf++;if(QM.mt<1)return;QM.mr=QM.mf/QM.mt<20?QM.mr+1:0;QM.mt=QM.mf=0;if(QM.mr>=6)mzCai();}
 /* ponytail: buildCapim le MOB direto em ~10 pontos; desligar MOB so durante a construcao (sincrona) gera a grama do computador sem duplicar o construtor */
-function mzCapim(){var m=MOB,old=CAPIM;try{MOB=false;buildCapim();}catch(x){ERRS.push('capim max '+x.message);mzErro();}finally{MOB=m;}
+function mzCapim(){if(MOB)return;var m=MOB,old=CAPIM;try{MOB=false;buildCapim();}catch(x){ERRS.push('capim max '+x.message);mzErro();}finally{MOB=m;}
   if(old&&old!==CAPIM){scene.remove(old);old.geometry.dispose();}}
 /* ponytail: ao cair para PS2 a grama do computador fica, cortada pelo nivel (qT().grass e VEG_MAX); modelos nunca trocam */
 /* modelos ja vieram na carga; MAXIMO acrescenta a grama do computador */
@@ -3501,6 +3517,7 @@ function blockBase(k,cx,cz,type,semente,destino){
 var FRESTAS=[],FRESTA_MODELO=null,FRESTA_MALHA=null,FRESTA_AGENDADA=false;
 // A rua toda compartilha a touceira fotografada do baldio. Só refaz o plantio quando o mapa muda.
 function frestasDepois(){
+  if(MOB)return;
   if(!FRESTA_MODELO||FRESTA_AGENDADA)return;FRESTA_AGENDADA=true;
   queueMicrotask(function(){
     FRESTA_AGENDADA=false;
@@ -4820,8 +4837,8 @@ function buildRelevoAmbiente(){
     im.name=tipo+'-ambiente';im.frustumCulled=false;a.grupo.add(im);a.arvores.push(im);vegCullAdd(im);im.userData.vc.maxD=kind===3?160:390;
   });
   /* Capim usa o lote e o culling existentes; nenhum draw extra. */
-  var u=CAPIM.userData,M=u.M;
-  for(i=0;i<u.n;i++){var x=M[i*16+12],z=M[i*16+14];if(z<-140&&z>-420&&Math.abs(x)>35&&Math.abs(x)<350)M[i*16+13]=Math.max(M[i*16+13],encostaH(x,z)-.03);}
+  if(CAPIM){var u=CAPIM.userData,M=u.M;
+  for(i=0;i<u.n;i++){var x=M[i*16+12],z=M[i*16+14];if(z<-140&&z>-420&&Math.abs(x)>35&&Math.abs(x)<350)M[i*16+13]=Math.max(M[i*16+13],encostaH(x,z)-.03);}}
   /* A mata existente acompanha a encosta nova, sem aumentar instancias ou draws. */
   VEGCULL.forEach(function(im){if(a.arvores.indexOf(im)>=0)return;var M=im.userData.vc.M;
     for(var j=0;j<M.length;j+=16){var x=M[j+12],z=M[j+14];if(z<-140&&z>-420&&Math.abs(x)>35&&Math.abs(x)<350)M[j+13]+=Math.max(0,encostaH(x,z)-terrainH(x,z));}
@@ -4836,6 +4853,7 @@ var RELQ={},RQ_AMP={comu:2.6,casas:1.1,park:.8,baile:.7,nobre:.3},RQ_BANK={comu:
 function relQ(x,z,i,j){return alturaGrade(RELQ&&RELQ[i+','+j],x,z);}
 // Capim do terreno entre o mercado e o quintal. A semente própria preserva a geração da rua.
 function matoBaldioMarlene(){
+  if(MOB)return;
   gltfTry('models/vegetacao/capim-fotografico.glb',function(g){
     var m=g.scene.getObjectByProperty('isMesh',true),rnd=mulberry32(73091),pts=[];
     vegVento(m.material,.4);FRESTA_MODELO=m;frestasDepois();
@@ -12176,7 +12194,7 @@ function vozNivel(){
   if(!VOZB.an||!VOZB.end||AC.currentTime>VOZB.end)return 0;if(VOZB.lvT===S.time)return VOZB.lv;
   VOZB.an.getFloatTimeDomainData(VOZB.anD);var s=0;for(var i=0;i<512;i++)s+=VOZB.anD[i]*VOZB.anD[i];
   VOZB.lvT=S.time;return VOZB.lv=Math.min(1,Math.sqrt(s/512)*6);}
-function vozPre(lines){for(var i=0;i<lines.length;i++){var l=lines[i];if(l.mudo)continue;var t=(l.cls==='radio'||l.cls==='pensa')?l.texto:l.quem+': '+l.texto,id=vozH(t);if(VOZ[id])vozGet(id);}}
+function vozPre(lines){if(MOB)return;for(var i=0;i<lines.length;i++){var l=lines[i];if(l.mudo)continue;var t=(l.cls==='radio'||l.cls==='pensa')?l.texto:l.quem+': '+l.texto,id=vozH(t);if(VOZ[id])vozGet(id);}}
 function vozPreRaw(lines){lines.forEach(function(l){var id=vozH(lineTxt(l));if(!l.mudo&&VOZ[id])vozRaw(id).catch(function(){});});} /* baixa os bytes antes do toque (site publicado busca o pacote grande) */
 function vozK(txt){var original=txt;txt=txt.replace(/\{\{(\w+)\}\}/g,function(m,k){return BOTOES[k]?BOTOES[k][0]:m;});/* Nome sem gravação própria mantém só a legenda. */
   if(VOZ[vozH(txt)])return txt;if(VOZ[vozH(original)])return original;return txt;}
