@@ -11818,6 +11818,7 @@ function updEsportiva(dt){var E=ESPORTIVA;
     motoPass();}
   E.d0=d;
 }
+var BAILEPEND=[];
 function buildNPCs(){
   var i;
   /* pipoqueiro */
@@ -11849,7 +11850,8 @@ function buildNPCs(){
   var cols=[0xff4fa3,0x38e8ff,0xffc65a,0xb38bff,0x5dffa0,0xff7a3a],sk=[0x7a4a2c,0x8a5a3c,0x5c3a21,0xa8714f,0x6b4430]; /* CEO 55fbce932f: comunidade mais escura */
   var spots=[[74,44],[78,53.5],[81,46.5],[72,51.5],[84,52],[76,45.5],[69.5,45],[80,43],[85,45],[73,55]];
   var nD=10;
-  for(i=0;i<nD;i++)addNPC('dan'+i,{shirt:cols[i%6],jaq:i%3===0?cols[(i+3)%6]:undefined,pants:i%2?0x20242c:0x3a4a7a,skin:sk[i%5],hair:i%3?0x1c1410:0x6a3a1a,dress:figuraFeminina(figuraBaile('dan'+i))?cols[(i+2)%6]:undefined},{x:spots[i][0],z:spots[i][1],yaw:yawTo(92-spots[i][0],49-spots[i][1]),mode:'dance'});
+  for(i=0;i<nD;i++)(function(i){var cria=function(){addNPC('dan'+i,{shirt:cols[i%6],jaq:i%3===0?cols[(i+3)%6]:undefined,pants:i%2?0x20242c:0x3a4a7a,skin:sk[i%5],hair:i%3?0x1c1410:0x6a3a1a,dress:figuraFeminina(figuraBaile('dan'+i))?cols[(i+2)%6]:undefined},{x:spots[i][0],z:spots[i][1],yaw:yawTo(92-spots[i][0],49-spots[i][1]),mode:'dance'});};
+    if(MOB&&!SELFTEST)BAILEPEND.push({q:{x:spots[i][0],z:spots[i][1]},cria:cria});else cria();})(i);
   /* MC no palco */
   addNPC('mc',{shirt:0xf4efe6,pants:0x20242c,hat:'cap',hatC:0xffc65a,skin:0x8a5a3c,chain:true},{x:92,z:49,yaw:Math.PI/2,mode:'dance'});
   NPCBY.mc.m.position.y=NPCBY.mc.y=npcY(NPCBY.mc);
@@ -15519,6 +15521,7 @@ function avisoBaile(){if(!S.avisoBaile){S.avisoBaile=true;playSeq(DIALOGO.baileR
 function dentroBaile(r){var b=BAILE.bounds;return r.x>b[0]&&r.x<b[1]&&r.z>b[2]&&r.z<b[3];}
 function startFimBaile(){
   if(S.baileFim||S.phase!=='play'||S.step!=='galpao'||seqBusy())return false;
+  baileCriaPendentes();
   var r=ref();
   if(dentroBaile(r)){
     if(!S.fimReposiciona){
@@ -15539,6 +15542,7 @@ function startFimBaile(){
 }
 function fimDoBaile(){
   if(S.baileFim)return false;
+  baileCriaPendentes();
   S.baileFim=true;S.clock=23;applyNight();setGalpaoPortao(false);
   BAILE.led.mat.color.setScalar(0);
   ['baile1','baile2','baile3'].forEach(function(k){if(LP[k])LP[k].intensity=0;});
@@ -20644,12 +20648,14 @@ function sbxSpawn(){
   }
 }
 function sbxCria(item){
+  if(item.cria){item.cria();return;}
   var n=addNPC(item.id,item.cfg,{x:item.q.x,z:item.q.z,mode:'walk',sp:item.sp,path:item.ring,s:item.s});
   if(item.kind)n.kind=item.kind;
   if(item.bad){SBB.push({n:n,cd:1,ag:false,lost:0,mf:sbxArm(n),mft:0});}
   if(hdDe(n))profSkin(n);
 }
 function sbxPendTick(dt){
+  if(BAILEPEND.length){SBPEND.push.apply(SBPEND,BAILEPEND);BAILEPEND=[];}
   if(!SBPEND.length)return;
   SBPENDT+=dt;if(SBPENDT<1)return;SBPENDT=0;
   var jogador=(S.inCar&&typeof CAR!=='undefined'&&CAR&&CAR.position)||P,criadas=0;
@@ -20662,6 +20668,10 @@ function sbxPendTick(dt){
     sbxCria(item);SBPEND[i]=null;criadas++;
   }
   if(SBPEND.every(function(item){return !item;}))SBPEND=[];
+}
+function baileCriaPendentes(){
+  BAILEPEND.forEach(function(item){if(item&&item.cria)item.cria();});BAILEPEND=[];
+  if(SBPEND)SBPEND=SBPEND.filter(function(item){if(!item)return false;if(!item.cria)return true;item.cria();return false;});
 }
 function sbxReset(){
   NPCS.forEach(function(n){if(n.down){motoRemonta(n);n.down=false;n.hold=!!n.hold00;n.m.rotation.x=0;n.m.position.y=n.y;}n.hp=undefined;n.fall=undefined;});
@@ -24116,6 +24126,11 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
     try{S.inCar=false;P.x=P.z=0;SBPENDT=0;SBPEND=[{q:{x:50,z:0}},{q:{x:60,z:0}},{q:{x:69,z:0}},{q:{x:70,z:0}},null];sbxCria=function(){total++;};
       sbxPendTick(.5);eq(total,0);sbxPendTick(.5);eq(total,2);sbxPendTick(1);eq(total,3);eq(SBPEND[3].q.x,70);
     }finally{SBPEND=pend;SBPENDT=t;sbxCria=cria;S.inCar=carro;P.x=x;P.z=z;}
+  });
+  T('baile: fila adiada e missao cria pendentes',function(){var pend=SBPEND,baile=BAILEPEND,t=SBPENDT,carro=S.inCar,x=P.x,z=P.z,total=0;
+    try{S.inCar=false;P.x=P.z=0;SBPENDT=0;SBPEND=[null];BAILEPEND=[50,60,69,70].map(function(x){return {q:{x:x,z:0},cria:function(){total++;}};});
+      sbxPendTick(1);eq(total,2);sbxPendTick(1);eq(total,3);baileCriaPendentes();eq(total,4);baileCriaPendentes();eq(total,4);
+    }finally{SBPEND=pend;BAILEPEND=baile;SBPENDT=t;S.inCar=carro;P.x=x;P.z=z;}
   });
   T('CEO 05/11 motos: garupa com 2 suspeitos, mais motos, suspeita foge da sirene',function(){fresh();
     var bikes=NPCS.filter(function(n){return n.bike&&/^moto/.test(n.id);}),b=NPCBY.moto3,c=NPCBY.moto1;eq(bikes.length,4);
