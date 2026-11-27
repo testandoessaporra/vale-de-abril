@@ -18372,7 +18372,7 @@ function cap2Tick(dt){
   }
   else if(c.stage==='passante'){
     var p=NPCBY.morador3;
-    if(!c.spoke){cap2Move(p,CAP2.passerStop,1.4,dt);if(dist2(p.x,p.z,CAP2.passerStop[0],CAP2.passerStop[1])<.2){c.spoke=true;c.t=0;animPerson(p.m,.01,0,'idle',p.y);p.yaw=yawTo(NPCBY.marlene.x-p.x,NPCBY.marlene.z-p.z);p.m.rotation.y=p.yaw;
+    if(!c.spoke){cap2Move(p,CAP2.passerStop,1.4,dt);if(dist2(p.x,p.z,CAP2.passerStop[0],CAP2.passerStop[1])<.5){c.spoke=true;c.t=0;animPerson(p.m,.01,0,'idle',p.y);p.yaw=yawTo(NPCBY.marlene.x-p.x,NPCBY.marlene.z-p.z);p.m.rotation.y=p.yaw;
       var L2=DIALOGO.cap2.passante;playSeq([L2[0]],function(){c.grab=S.time;sfx('bump');p.yaw=yawTo(CAP2.cameraPasser[0]-p.x,CAP2.cameraPasser[2]-p.z);playSeq(L2.slice(1),function(){c.grab=null;c.fuga=S.time;});});}}
     else if(c.grab!=null){/* agarrado pela gola: levanta na ponta do pe e treme */var k=Math.min(1,(S.time-c.grab)*4);animPerson(p.m,.01,0,'idle',p.y);p.m.position.set(p.x,p.y+.09*k,p.z);p.m.rotation.set(-.1*k,p.yaw,Math.sin(S.time*31)*.03*k);}
     else if(c.fuga!=null){p.m.rotation.set(0,p.yaw,0);cap2Move(p,CAP2.passerOut,4.6,dt);if(S.time-c.fuga>=3.5){p.m.visible=false;cap2Stage('pensamento');}}
@@ -20037,7 +20037,7 @@ function failRun(msg,mouse){
 }
 /* ---------- FPS sandbox (fora do episodio): todo mundo morre, bandido atira de volta, pente e caixa de municao ---------- */
 function SBX(){return !EP.on;}
-var SBHP={civil:2,suspeito:2,bandido:3},SBB=[],SBDROP=[],SBFX={hm:0,vig:0,arrA:0,arrT:0},SBSPAWN=false,SBFILM=-99;
+var SBHP={civil:2,suspeito:2,bandido:3},SBB=[],SBDROP=[],SBFX={hm:0,vig:0,arrA:0,arrT:0},SBSPAWN=false,SBFILM=-99,SBPEND=[],SBPENDT=0,SBFR=new THREE.Frustum(),SBMAT=new THREE.Matrix4(),SBSFERA=new THREE.Sphere(new THREE.Vector3(),1.2);
 (function(){
   var st=document.createElement('style');
   st.textContent='#sbvig{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(190,0,0,.75) 100%)}'+
@@ -20639,11 +20639,29 @@ function sbxSpawn(){
     var ring=rings[i%3],s=Math.random()*ring.len,q=ring.at(s),bad=i>=18,fem=!bad&&figuraFeminina(RUA_FIG[i]);
     var cfg=bad?{shirt:pick([0x1a1a1c,0x2a2d33,0x3a2020]),pants:0x1a1a1c,skin:pick(SK),hair:0x101010,hat:'cap',hatC:pick([0x101010,0xb8202a,0x2a2d33])}
       :{shirt:pick(SH),pants:pick(PA),skin:pick(SK),hair:pick(HR),dress:fem&&Math.random()<.4?pick(SH):0,bun:fem,glasses:Math.random()<.15,belly:!fem&&Math.random()<.25,scale:.92+Math.random()*.14};
-    var n=addNPC((bad?'sb_b':'sb_c')+i,cfg,{x:q.x,z:q.z,mode:'walk',sp:bad?1.2:1.2+Math.random()*.4,path:ring,s:s});
-    if(!bad&&i%6===5)n.kind='suspeito';
-    if(bad){n.kind='bandido';SBB.push({n:n,cd:1,ag:false,lost:0,mf:sbxArm(n),mft:0});}
-    if(hdDe(n))profSkin(n);/* corpo HD do suspeito quando GENTE e HD ja carregaram */
+    var item={id:(bad?'sb_b':'sb_c')+i,cfg:cfg,q:q,bad:bad,kind:bad?'bandido':i%6===5?'suspeito':'',sp:bad?1.2:1.2+Math.random()*.4,ring:ring,s:s};
+    if(MOB&&!SELFTEST)SBPEND.push(item);else sbxCria(item);
   }
+}
+function sbxCria(item){
+  var n=addNPC(item.id,item.cfg,{x:item.q.x,z:item.q.z,mode:'walk',sp:item.sp,path:item.ring,s:item.s});
+  if(item.kind)n.kind=item.kind;
+  if(item.bad){SBB.push({n:n,cd:1,ag:false,lost:0,mf:sbxArm(n),mft:0});}
+  if(hdDe(n))profSkin(n);
+}
+function sbxPendTick(dt){
+  if(!SBPEND.length)return;
+  SBPENDT+=dt;if(SBPENDT<1)return;SBPENDT=0;
+  var jogador=(S.inCar&&typeof CAR!=='undefined'&&CAR&&CAR.position)||P,criadas=0;
+  camera.updateMatrixWorld();SBFR.setFromProjectionMatrix(SBMAT.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+  for(var i=0;i<SBPEND.length&&criadas<2;i++){
+    var item=SBPEND[i];if(!item)continue;
+    var d=dist2(jogador.x,jogador.z,item.q.x,item.q.z);if(d>=70)continue;
+    SBSFERA.center.set(item.q.x,surfaceY(item.q.x,item.q.z)+.9,item.q.z);
+    if(d<=40&&SBFR.intersectsSphere(SBSFERA))continue;
+    sbxCria(item);SBPEND[i]=null;criadas++;
+  }
+  if(SBPEND.every(function(item){return !item;}))SBPEND=[];
 }
 function sbxReset(){
   NPCS.forEach(function(n){if(n.down){motoRemonta(n);n.down=false;n.hold=!!n.hold00;n.m.rotation.x=0;n.m.position.y=n.y;}n.hp=undefined;n.fall=undefined;});
@@ -20755,6 +20773,7 @@ function npcPapo(dt){var q=PAPO.on;
 function papoFim(){var q=PAPO.on;if(!q)return;PAPO.on=null;[q.a,q.b].forEach(function(n){n.hold=!!n.papoHold;n.papoHold=null;});if(S.falante===q.a||S.falante===q.b)S.falante=null;}
 function sacosAtualiza(dt){if(!S.inCar&&P.spd>.18)sacosContato(P.x,P.z,P.y,0,0,.29,.35);sacosPasso(dt);}
 function sbxUpdate(dt){
+  if(MOB)sbxPendTick(dt);
   npcFala(dt);npcPapo(dt);
   NPCS.forEach(function(n){if(/^sb_[cb]/.test(n.id)&&n.m.visible)ostTick(n,dist2(n.x,n.z,P.x,P.z));});
   NPCS.forEach(function(n){if(n.down&&n.fall!==undefined&&n.fall<1){if(n.fall===0)corpoLado(n);n.fall=Math.min(1,n.fall+dt/.3);var f=n.fall;n.m.rotation.x=-1.45*f*f;n.m.position.y=n.y+.15*f;}});
@@ -24093,6 +24112,11 @@ if(!CIVIS)return;var urbanos=TRAF.filter(function(n){return !n.hw;});tr(urbanos.
     for(var k=0;k<60;k++){step(1/20);var dentro=COL.some(function(b){return c.x>b[0]+.05&&c.x<b[2]-.05&&c.z>b[1]+.05&&c.z<b[3]-.05;});tr(!dentro,'civil dentro de parede');}rmN(c);P.x=0;P.z=92;toCar(0,92,0);});
   T('colisao 05/11: carro do transito empurra o jogador para fora',function(){if(!CIVIS)return;fresh();exitCar(true);var t=TRAF[0];P.x=t.x;P.z=t.z;updTrafego(.016);var hp={x:P.x,z:P.z,y:P.y};tr(!pushCircle(hp,.39,[modelHitbox(t.m).col]),'jogador dentro da lataria');P.x=0;P.z=92;toCar(0,92,0);});
   T('sandbox: 24 NPC na rua',function(){var k=NPCS.length,b=SBB.length;sbxSpawn();eq(NPCS.length,k+24);eq(SBB.length,b+6);NPCS.filter(function(n){return /^sb_/.test(n.id);}).forEach(rmN);SBB.length=b;SBSPAWN=false;});
+  T('sandbox: criacao adiada limitada',function(){var pend=SBPEND,t=SBPENDT,cria=sbxCria,carro=S.inCar,x=P.x,z=P.z,total=0;
+    try{S.inCar=false;P.x=P.z=0;SBPENDT=0;SBPEND=[{q:{x:50,z:0}},{q:{x:60,z:0}},{q:{x:69,z:0}},{q:{x:70,z:0}},null];sbxCria=function(){total++;};
+      sbxPendTick(.5);eq(total,0);sbxPendTick(.5);eq(total,2);sbxPendTick(1);eq(total,3);eq(SBPEND[3].q.x,70);
+    }finally{SBPEND=pend;SBPENDT=t;sbxCria=cria;S.inCar=carro;P.x=x;P.z=z;}
+  });
   T('CEO 05/11 motos: garupa com 2 suspeitos, mais motos, suspeita foge da sirene',function(){fresh();
     var bikes=NPCS.filter(function(n){return n.bike&&/^moto/.test(n.id);}),b=NPCBY.moto3,c=NPCBY.moto1;eq(bikes.length,4);
     var g=b.m.userData.garupa;tr(g&&g.parent===b.m&&g.position.z>b.m.userData.rider.position.z,'garupa fora da moto');eq(npcKind(b),'suspeito');tr(!NPCS.some(function(n){return n.m===g;}),'garupa no loop');
@@ -24841,7 +24865,12 @@ T('W1 abertura: 8 ids D, dialogo Central x Voce, pensamento dublado e sem ligaca
     c2start();var c=S.marlene;
     c2segue(CAP2.ida,3.5,'escolta',90);eq(c.stage,'entrada');eq(c.i,5);c2luta();
     c2segue(cap2VoltaRota().p,3.5,'volta',90);
-    eq(c.stage,'mal');for(var k=0;k<90&&S.step!=='livre';k++)step(1);eq(S.step,'livre');eq(S.phase,'play');tr(c.done&&!c.active,'nao fechou');tr(NPCBY.marlene.m.visible&&!NPCBY.marlene.down,'Marlene sumiu no fim');tr(c.viva,'final feliz perdido');tr(S.nextOc>S.time&&S.nextOc<1e9,'ocorrencia nao restaurada');fresh();
+    eq(c.stage,'mal');for(var k=0;k<90&&S.step!=='livre';k++)step(1);eq(S.step,'livre','etapa '+c.stage+' falou '+c.spoke+' distancia '+dist2(NPCBY.morador3.x,NPCBY.morador3.z,CAP2.passerStop[0],CAP2.passerStop[1]).toFixed(2)+' seq '+SEQ.q.length+' grab '+c.grab+' fuga '+c.fuga);eq(S.phase,'play');tr(c.done&&!c.active,'nao fechou');tr(NPCBY.marlene.m.visible&&!NPCBY.marlene.down,'Marlene sumiu no fim');tr(c.viva,'final feliz perdido');tr(S.nextOc>S.time&&S.nextOc<1e9,'ocorrencia nao restaurada');fresh();
+  });
+  T('W2b passante perto do destino nao trava na colisao',function(){
+    c2start();cap2Stage('passante');var c=S.marlene,n=NPCBY.morador3,passo=atorPasso;
+    try{n.x=CAP2.passerStop[0]+.42;n.z=CAP2.passerStop[1];atorPasso=function(p){p.x=CAP2.passerStop[0]+.42;p.z=CAP2.passerStop[1];};cap2Tick(.05);tr(c.spoke,'passante ficou preso perto do destino');}
+    finally{atorPasso=passo;fresh();}
   });
   T('W2b paz suspende todos os bandidos salvo os dois do set piece',function(){
     c2start();var c=S.marlene;
