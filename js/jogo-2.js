@@ -1079,7 +1079,16 @@ function paredeCaixa(B,id,o,casca){
   });
 }
 function Blk(){return {B:new Batch(),E:new Batch()};}
-function flush(k){k.B.mesh(k.matB||MAT,true,true);var m=k.E.mesh(MATE,false,false);return m;}
+var MAT_DISTANTE=null;
+function matQuadraDistante(){
+  if(MAT_DISTANTE)return MAT_DISTANTE;
+  var m=MAT.clone(),u={rb:{value:CODEX_TX.u.rb.value},cc:{value:CODEX_TX.u.cc.value},grama:{value:RUA_TEX.grama}};
+  [['rb','texturas/codex/05-chapisco-reboco.png'],['cc','texturas/rua/passeio-chapa.webp'],['grama','texturas/rua/04-grama-solo.jpg'],['map','texturas/codex/03-calcada-cimento.png']].forEach(function(p){new THREE.TextureLoader().load(p[1],function(t){var pequena=t.clone();capTex(pequena,256);if(p[0]==='map'){m.map=pequena;m.needsUpdate=true;}else u[p[0]].value=pequena;});});
+  m.onBeforeCompile=function(sh){MAT.onBeforeCompile(sh);sh.uniforms.tCxRb=u.rb;sh.uniforms.tCxCc=u.cc;sh.uniforms.ruaGrama=u.grama;};
+  m.customProgramCacheKey=function(){return MAT.customProgramCacheKey()+'|quadra-distante';};
+  return MAT_DISTANTE=m;
+}
+function flush(k){var b=MOB&&!SELFTEST&&k.distante&&!k.matB?k.B.mesh(matQuadraDistante(),true,true):k.B.mesh(k.matB||MAT,true,true);if(b&&b.material===MAT_DISTANTE){var versao=MAT.version;b.onBeforeRender=function(){if(versao!==MAT.version){versao=MAT.version;MAT_DISTANTE.needsUpdate=true;}};}var m=k.E.mesh(MATE,false,false);return m;}
 /* CEO 09/11 barro do fundo do quintal da Marlene: o chao de terra da quadra dela (cor por vertice, sem textura: lia como borrao) ganha a
    textura de terra batida em coordenadas de mundo (6 m por tile). So superficie plana de cor de barro; a quadra dela = K[2][2]. */
 function barroQuintalMat(){
@@ -7444,6 +7453,7 @@ if(!MOB)mkPL('baile3',0xffc65a,26,82,5,49);
   buildPostinho(K[0][1]);
   /* flush */
   K[2][2].matB=barroQuintalMat();/* quadra da Marlene (casinha, CEO 09/11 barro do quintal) */
+  if(MOB&&!SELFTEST)for(var dj=0;dj<3;dj++)for(var di=0;di<4;di++){var dx=Math.max(0,Math.abs(BX(di))-QW/2),dz=Math.max(0,Math.abs(BZ(dj)-92)-QD/2);K[dj][di].distante=dx*dx+dz*dz>3600;}
   for(var jj=0;jj<3;jj++)for(var ii=0;ii<4;ii++)flush(K[jj][ii]);
   buildCabana(KG.B);
   flush(KG);buildLampPools();montaCabecasPoste();nmBuild();telhadoLutaBuild();buildForest();buildVegReal();arvInicia();buildRelevoAmbiente();f1Monta(); /* frente1 */if(QS.get('dbg')==='1')DBGW.F1={n:F1.n,muros:MUROS.length}; /* frente1b */
