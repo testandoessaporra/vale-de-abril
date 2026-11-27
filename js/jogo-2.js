@@ -5846,6 +5846,7 @@ function paintedSign(texto,sub,estilo,cores,x,y,z,ry,w,h){novoUso('paintedSign')
       g.strokeStyle='#a08b60';g.lineWidth=4;[[0,0,28,28],[1024,0,996,28],[0,H,28,H-28],[1024,H,996,H-28]].forEach(function(p){g.beginPath();g.moveTo(p[0],p[1]);g.lineTo(p[2],p[3]);g.stroke();g.beginPath();g.arc(p[2],p[3],7,0,7);g.stroke();});}
     tex.needsUpdate=true;
   }
+  if(MOB){var draw0=draw,sm=mkCanvas(512,Math.max(96,Math.round(H/2)));draw=function(){cv.width=1024;cv.height=H;draw0();sm.getContext('2d').drawImage(cv,0,0,sm.width,sm.height);cv.width=cv.height=1;tex.image=sm;tex.needsUpdate=true;};}/* CEO 26/11 celular: placa em 1/4 da memoria, canvas grande liberado */
   draw();SIGNS.push({draw:draw});if(MOB)PAINTED_TX[key]=tex;}
   var geo=novoRecurso(new THREE.PlaneGeometry(w,h,estilo==='lona'?12:1,estilo==='lona'?4:1),'geos');
   if(e.corda){var p=geo.attributes.position;for(var i=0;i<p.count;i++){var px=p.getX(i)/(w/2),py=p.getY(i)/(h/2);p.setZ(i,.09*(1-px*px)*(1-py*py));}p.needsUpdate=true;geo.computeVertexNormals();}
@@ -7353,11 +7354,12 @@ function casinhaTick(){TERREO_KIT.tick();var pt=CASINHA.porta;if(pt){pt.open+=cl
   var inside=P.x>7.1&&P.x<16.1&&P.z>50.5&&P.z<56.1;
   CASINHA.grupo.visible=inside||dist2(P.x,P.z,CASINHA.door[0],CASINHA.door[1])<36||dist2(P.x,P.z,16,53.85)<36;
 }
+function mercGarante(){if(MERC.grupo)return;bomPrecoInterior();if(LUZF){var luzes=[];MERC.grupo.traverse(function(o){if(o.isPointLight&&o.parent)luzes.push(o);});luzes.forEach(function(l){var g=l.parent,p=l.position.clone();scene.add(l);LUZF.push({l:l,g:g,p:p});});}}
 function mercTick(dt){
-  if(!MERC.grupo)return;
+  if(!MERC.grupo&&dist2(P.x,P.z,MERC.door[0],MERC.door[1])<30)mercGarante();
   // Liga antes da porta: quem chega pela calcada ja ve a loja montada, sem pop-in no passo.
   var inside=P.x>7.05&&P.x<21.35&&P.z>42.35&&P.z<50.65;
-  MERC.grupo.visible=inside||dist2(P.x,P.z,MERC.door[0],MERC.door[1])<MERC.verDe;
+  if(MERC.grupo)MERC.grupo.visible=inside||dist2(P.x,P.z,MERC.door[0],MERC.door[1])<MERC.verDe;
   var near=dist2(P.x,P.z,MERC.door[0],MERC.door[1])<3.6||(S&&S.marlene&&S.marlene.active&&dist2(NPCBY.marlene.x,NPCBY.marlene.z,MERC.door[0],MERC.door[1])<3.6);
   MERC.open=clamp(MERC.open+(near?dt*2.2:-dt*1.6),0,1);
   // O colisor segue a folha mesmo durante o movimento, sem desaparecer no meio da abertura.
@@ -7524,7 +7526,7 @@ BK.prototype.mesh=function(mat,cast){
 };
 var VMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.02,envMapIntensity:.45});
 var VMATM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.3,metalness:.7,envMapIntensity:1.3});
-bomPrecoInterior();casinhaInterior();
+if(!MOB)mercGarante();casinhaInterior();
 
 /* mundo-conta-historia-prologo: 14 fichas, 2 lotes, zero colisor, zero tick.
    ponytail: objetos estaticos reunidos uma vez; sem sistema paralelo de entidades.
@@ -10655,7 +10657,7 @@ function buildBloqueioMP(){var SR1=0; /* CEO 06/11: MP fica na reta do inicio (x
   /* CEO 06/11 23h5x "ta de costas, tem que ficar de frente pro jogador": grupo montado olhando -z, girado para o jogador que chega do sul */
   mp.rotation.y=Math.PI;mp.position.set(0,0,MP_Z);scene.add(mp);mp.children.forEach(function(m){if(m.isMesh&&!m.isInstancedMesh&&m.geometry.type==='BoxGeometry')barreiraMesh(m,'muralha-mp');});
   /* sem pop-in: nasce transparente e aparece em 1,5 s */
-  mp.traverse(function(o){if(o.isMesh){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=0;}});mp.userData.fade=0;buildPedagioPRF(mp);
+  mp.traverse(function(o){if(o.isMesh){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=0;}});mp.userData.fade=0;if(!MOB)buildPedagioPRF(mp);
 }
 /* CEO 05/11 rodovia: pedagio com cancela e posto da Policia Rodoviaria FIVA, ANTES do MP (PG_Z e POSTO_Z). Cabines fora da pista; cancela e cones com impacto leve, sem COL rigida.
    Geometria simples vira 1 Batch (1 mesh); placas, brasao e cancela sao mesh proprias (catraca de meshes ajustada). */
@@ -10873,6 +10875,7 @@ function buildPedagioPRF(mp){
   scene.add(PG);ca.col=barreiraMesh(ca.bar,'cancela-pedagio',null,PORTA_PE);ca.col.soPe=true;PG.userData={cancela:ca,textos:texts};mp.userData.pg=PG;
   /* fade junto com o MP (mpFade) */
   PG.traverse(function(o){if(o.isMesh){var anterior=o.material;o.material=anterior.clone();o.material.onBeforeCompile=anterior.onBeforeCompile;o.material.customProgramCacheKey=anterior.customProgramCacheKey;o.material.transparent=true;o.material.opacity=0;}});
+  if(MOB&&mp.userData.fade>=1)PG.traverse(function(o){if(o.isMesh){if(o.userData.vernizPRF)aparenciaPRF(o,1);else{o.material.opacity=1;o.material.transparent=o.name==='pintura-pista-pedagio';}}});
 }
 /* ORDEM Gabinete 06/11: atirou no MP ou nos guardas = reforco infinito ate morrer; morte = GAME OVER e volta ao checkpoint (antes do forte) */
 var MPALVO=[];for(var _i=-7;_i<=7;_i+=1.5)MPALVO.push([_i,MP_Z-3.5,0]);MPALVO.push([10.5,MP_Z-4.6,10],[-10.5,MP_Z-4.6,10]);
@@ -10965,7 +10968,8 @@ function coneHeroi(ca,dt){var H=CONE_HE,sujo=false,hx=P.vx||0,hz=P.vz||0,hv=Math
     p.x=c.x0+t.ox+t.dx*tip;p.z=c.z0+t.oz+t.dz*tip;p.y=surfaceY(p.x,p.z)+H.h*ca_+H.r*sa;
     c.o.quaternion.setFromAxisAngle(_cax.set(t.dz,0,-t.dx),a);sujo=true;});
   return sujo;}
-function pedagioTick(dt){var ca=pedagioEstado();if(!ca||!S||S.phase!=='play'||dt<=0)return;
+function pedagioTick(dt){var mp=mpObj();if(MOB&&mp&&!mp.userData.pg&&S&&S.phase==='play'&&((P&&Math.abs(P.z-PG_Z)<160)||(C0&&Math.abs(C0.z-PG_Z)<160)))buildPedagioPRF(mp);
+  var ca=pedagioEstado();if(!ca||!S||S.phase!=='play'||dt<=0)return;
   var na=S.inCar&&Math.abs(C0.x)<5&&C0.z<PG_Z+8&&C0.z>PG_Z-12&&Math.abs(C0.v)*3.6<25?1:0;
   if(!ca.broken){ca.open+=(na-ca.open)*Math.min(1,dt*4);ca.pivot.rotation.z=-Math.PI/2*ca.open;}
   /* Todos os carros passam pelo mesmo impacto; so os que se movem entram na conta. */
@@ -15349,6 +15353,7 @@ var BP={caixa:[10.9,43.7],rota:[[13.4,44.9],[16.75,45.3],[16.75,47],[16.6,49.15]
 function bpIn(r){return r.x>MERC.x0&&r.x<MERC.x1&&r.z>MERC.z0&&r.z<MERC.z1;}
 function talkMarlene(){ /* inicio da cena: missionUpdate chama sozinho quando o jogador chega perto do João */
   if(S.step!=='marlene'||S.inCar||!bpIn(P)||!nearNPC('juca',4))return;
+  mercGarante();
   /* ordem CEO 05/11 (FILA 28): cutscene travada igual a abertura. Ninguem anda nem pula: cortes com fade, NPC parado olhando o jogador */
   S.step='ocupada';S.bp={st:'b1',lock:true};var b=S.bp;P.vx=P.vz=0;cenaFoco(NPCBY.juca,true);setObj('Ouça o Seu João');
   playSeq(DIALOGO.bp1.concat(DIALOGO.bp1b),function(){later(.5,function(){corte(bpCorte1);});});
@@ -15356,11 +15361,13 @@ function talkMarlene(){ /* inicio da cena: missionUpdate chama sozinho quando o 
 function corte(fn){$('fade').classList.add('on');later(.45,function(){fn();later(.15,function(){$('fade').classList.remove('on');});});}
 function cenaPos(n,x,z){var q={x:x,z:z};pushCircle(q,.34,COL);cap2Place(n,[q.x,q.z]);n.hold=false;n.mode='idle';n.face=P;}
 function bpCorte1(){ /* fundo do corredor, perto da cortina: João mostra o caderno do fiado e chama a Marlene */
+  mercGarante();
   var b=S.bp,j=NPCBY.juca;if(!b||S.step!=='ocupada'||b.st!=='b1')return false;b.st='b2';P.x=16.75;P.z=46.3;P.vx=P.vz=0;P.alt=0;cenaPos(j,16.7,48.2);cenaFoco(j,true);
   vozPre(DIALOGO.bp3.concat(DIALOGO.bp3b));
   playSeq(DIALOGO.bp2,function(){j.face={x:BP.cortina[0],z:BP.cortina[1]};playSeq(DIALOGO.bp3a,function(){later(1.4,function(){corte(bpCorte2);});});});
 }
 function bpCorte2(){ /* Marlene ja saiu da cortina, de frente para o jogador; João de lado */
+  mercGarante();
   var b=S.bp,j=NPCBY.juca,m=NPCBY.marlene;if(!b||S.step!=='ocupada'||b.st!=='b2')return false;b.st='b4';cenaPos(m,16.85,47.9);cenaPos(j,17.2,48.6);/* João ao lado da cortina, atras-esquerda da Marlene: em 16.0,47.5 ele entrava na gondola de sabao */j.face=P;cenaFoco(m,true);setObj('Ouça a Dona Marlene');
   vozPre(DIALOGO.bp4);
   playSeq(DIALOGO.bp3.concat(DIALOGO.bp3b),function(){later(1.2,function(){playSeq(DIALOGO.bp4,function(){later(2,bpEscolha);});});});
@@ -17750,6 +17757,7 @@ function estMontPlano(i){/* monta o plano i: ator no lugar, camera fixa {a,b,at,
     DOGM.visible=true;var dx=d[0]-.95,dz=d[1]+.95;DOGM.position.set(dx,surfaceY(dx,dz),dz);DOGM.rotation.set(0,yawTo(-1,.35),0);
     c=k==='marlene'?{a:[d[0]-7.4,1.9,d[1]+3.6],b:[d[0]-6.9,1.85,d[1]+3.2],at:[d[0]-.6,.95,d[1]+.4],v:36,n:n}:{a:[d[0]-5.6,1.45,d[1]+2.6],at:[d[0]-.6,.95,d[1]+.35],v:32,n:n};
   }else if(k==='junior'){/* Junior sentado na cadeira do Mercadinho, olhando pro chao */
+    mercGarante();
     n=estMontNovo('junior',function(){return addNPC('junior',{},{x:BP.caixa[0],z:BP.caixa[1],yaw:0,mode:'idle',name:'Júnior'});});
     cadeiraVolta();/* a escolta pode ter levado a cadeira ate a Marlene: sem isto o Junior sentaria no ar */var jx=EST_JR[0],jz=EST_JR[1];n.hold=true;n.idleHold=false;n.sit=true;n.mode='idle';n.down=n.surrendered=false;n.m.visible=true;n.yaw=EST_JR[2];cap2Place(n,[jx,jz]);
     u=n.m.userData;if(u.gl){var G=u.gl;G.mx.stopAllAction();G.cur='';glPlay(u,'Sitting');var sa=G.a.Sitting;if(sa){sa.time=sa.getClip().duration;sa.paused=true;}G.mx.update(0);G.s.position.y=G.baseY;}/* CEO 10/11 'Junior sentado errado': tinha +20 cm de sobra de quando sentava num degrau; flutuava 18 cm acima do assento com o pe 22 cm no ar. Sem a sobra a sola encosta no chao e a coxa no assento (catraca mede a malha) */
@@ -26256,7 +26264,7 @@ function estFinal(){fresh();S.estPend=true;exitCar(true);enterCar();}
     eq($('fimBox').querySelector('h2').textContent,'Você jogou a demonstração de Vale de Abril','titulo');
     eq(JSON.stringify([].map.call($('fimLista').querySelectorAll('p'),function(l){return l.textContent;})),JSON.stringify(["Olá, mestres e mestras, mestrinhos e mestronas.", "Esse jogo começou a ser feito em 1º de novembro de 2026. Oito dias antes desta demo.", "Se alguma coisa travou, bugou ou não funcionou como devia: me desculpa. É um jogo em desenvolvimento, e cada bug que você encontrar me ajuda a deixar ele melhor.", "Ele só saiu tão rápido porque nasceu impulsionado pelo nosso sistema de estudos, o S4P.", "Eu quero levar esse jogo muito mais longe: mais cidade, mais história, mais concurso dentro da aventura. Só que hoje a gente não tem máquina nem servidor pra expandir. Precisa de estrutura de verdade: mais armazenamento, um servidor próprio e SUPERINTELIGÊNCIA rodando aqui dentro.", "Se você curtiu e quer ver isso crescer, faça uma doação voluntária, de qualquer valor, pelo PIX abaixo. Toda ajuda conta."]),'carta do Paulo (CEO 08/11: texto anterior, voz dele)');
     tr(/Paulo Benites/.test(p.textContent),'sem assinatura');tr(p.contains($('fimPix'))&&/paulobenitesprf@gmail\.com/.test($('fimPix').textContent),'PIX sem chave');
-    tr(/pix-qr\.png/.test($('pixQr').src)&&/br\.gov\.bcb\.pix/.test($('pixCopiaCola').dataset.pix)&&$('pixCopia').dataset.pix==='paulobenitesprf@gmail.com','QR ou copia e cola do PIX');
+    tr(/pix-qr\.png/.test($('pixQr').src)&&/br\.gov\.bcb\.pix/.test($('pixCopiaCola').dataset.pix)&&/@/.test($('pixCopia').dataset.pix)&&!/\*\*\*@|@\w\*\*\*|__PIX/.test($('pixCopia').dataset.pix+$('pixCopiaCola').dataset.pix),'QR ou copia e cola do PIX');
     eq($('fimJoga').textContent,'Jogar de novo','botao 1');eq($('estVolta').textContent,'Voltar ao menu','botao 2');
     tr(!/[—–]/.test(p.textContent),'travessao no pop-up');tr(!/\bIA\b/.test(p.textContent),'IA no pop-up');
     estMenuTeste(function(){$('estVolta').click();});});
