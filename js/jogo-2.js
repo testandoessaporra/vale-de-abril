@@ -130,6 +130,7 @@ var QT=[{pr:1,sh:512,shadow:false,ms:2,bloom:false,grass:.4},{pr:1,sh:1024,shado
 if(MOB)QT=QT.map(function(t){return Object.assign({},t,{pr:1,sh:512,shadow:false,ms:0,bloom:false,grass:.25});});
 /* CEO 09/11 17h 'computador de batata rodando liso, nem que desative quase tudo': MODO BATATA abaixo do nivel 0. 1 = 75% da resolucao, 2 = 50%; sem sombra, sem brilho, sem MSAA, horizonte de celular (batSet). ?bat=1|2 forca; o aparelho lembra (vda_bat) */
 var QBAT=[null,{pr:.75,sh:512,shadow:false,ms:0,bloom:false,grass:.25},{pr:.5,sh:512,shadow:false,ms:0,bloom:false,grass:.035}],BAT=0,BAT0=0;
+if(MOB)QBAT[2].pr=1;
 /* CEO 09/11 17h40 'um batata supremo e um batata leve nas configuracoes, sem dois links': GFX = escolha na mao em OPCOES > Grafico (vda_gfx): 0 adaptativo (vigia decide), 1 leve, 2 supremo. Escolha na mao ou ?bat= trava o vigia */
 var GFX=0,MZC=false;
 /* === PRESETS PS1..PS5 PRO (portao-2211-presets.py, CEO 24/11 12h01) ===
@@ -146,10 +147,10 @@ function gfxFraco(){var w=gpuFraca(GPUN);if(!w&&((navigator.deviceMemory||8)<=2|
 /* Automatico: sem placa 2 -> PS1, fraca ou celular -> PS2, comum e forte -> PS4 */
 function gfxAuto(){var w=gfxFraco();return w>1?2:w?1:5;}
 /* === PRESETS fim === */
-(function(){var c=function(v){return Math.max(0,Math.min(2,+v|0));},f=QS.get('bat');if(f!=null&&f!==''){GFX=BAT=c(f);}else if(!QS.get('q')&&!SELFTEST){try{var g=gfxLe(),p;GFX=g.g;QX=g.x;MZC=GFX===3;p=GFX===7?QX:GFXP[GFX];if(p){BAT=p.b;QL=p.q;}else BAT=c(localStorage.getItem('vda_bat'));}catch(e){}}if(BAT)QL=0;BAT0=BAT;})();
-function qT(){var t=BAT?QBAT[BAT]:QT[QL];return GFX===7&&QX?Object.assign({},t,QX.t):t;}
+(function(){var c=function(v){return Math.max(0,Math.min(2,+v|0));},f=QS.get('bat');if(MOB){GFX=BAT=2;}else if(f!=null&&f!==''){GFX=BAT=c(f);}else if(!QS.get('q')&&!SELFTEST){try{var g=gfxLe(),p;GFX=g.g;QX=g.x;MZC=GFX===3;p=GFX===7?QX:GFXP[GFX];if(p){BAT=p.b;QL=p.q;}else BAT=c(localStorage.getItem('vda_bat'));}catch(e){}}if(BAT)QL=0;BAT0=BAT;})();
+function qT(){if(MOB)return QBAT[2];var t=BAT?QBAT[BAT]:QT[QL];return GFX===7&&QX?Object.assign({},t,QX.t):t;}
 /* composer (MSAA, brilho, SAO, filtro final): niveis 1+ fora do batata; Personalizado liga quando pede algum desses */
-function qPost(){if(!BAT&&QL>0)return true;if(GFX!==7||!QX)return false;var t=QX.t;return !!(t.ms||t.bloom||t.sao);}
+function qPost(){if(MOB)return false;if(!BAT&&QL>0)return true;if(GFX!==7||!QX)return false;var t=QX.t;return !!(t.ms||t.bloom||t.sao);}
 /* placa fraca conhecida: 2 = desenho por software (sem placa), 1 = integrada/antiga */
 function gpuFraca(n){n=String(n||'');return /swiftshader|llvmpipe|software|basic render/i.test(n)?2:/intel[^,]*\b(hd|uhd) graphics|\bgma\b|mali-(4|t)|adreno \(tm\) ([2-4]\d\d|50\d|51\d)|powervr|videocore|radeon (hd|r[57]) /i.test(n)?1:0;}
 /* CEO 24/11 "faz um 2K upscale, para outros PCs tambem": o jogo desenha no maximo 2560x1440 pixels (3,7 milhoes) e o navegador amplia para a tela.
@@ -165,7 +166,7 @@ try{
   /* CEO 09/11 02h08 iPhone 'Um problema ocorreu repetidamente' de novo: capTex so cobria o TextureLoader; GLB embutido e canvas ainda subiam 1024/2048 (102 Mpx ~ 540 MB de video).
      Classe: no celular o WebGL diz que o maximo e TEX_MOB, e o proprio three encolhe TODA textura na subida (imagem, canvas, ImageBitmap). */
   if(MOB)[window.WebGLRenderingContext,window.WebGL2RenderingContext].forEach(function(C){if(!C)return;var g=C.prototype.getParameter;C.prototype.getParameter=function(k){var v=g.call(this,k);return k===0x0D33?Math.min(v,TEX_MOB):v;};});
-  renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:false,powerPreference:'high-performance',alpha:false});renderer.debug.checkShaderErrors=!/[?&]cse=0/.test(BUSCA);DBGW.__R=renderer;/* medida A/B (arbitro 16/11): &cse=0 desliga a checagem de erro de shader do three */
+  renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:false,powerPreference:'high-performance',alpha:false});DBGW.__R=renderer;
 }catch(e){$('nogl').classList.add('on');return;}
 var GPUN='';try{(function(){var g=renderer.getContext(),e=g.getExtension('WEBGL_debug_renderer_info');GPUN=e?String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)||''):'';})();}catch(e){}
 /* 1a vez no aparelho (sem ?q, ?bat nem escolha gravada): placa fraca ja nasce leve, sem esperar engasgar */
@@ -485,7 +486,7 @@ function batSet(n,adia){var k=batSet.k||(batSet.k={far:camera.far,fog:scene.fog.
   applyQ(QL,adia);vegTick(true);telhadoLutaNivel(n);}
 var QM={w:0,t:0,f:0,r:0,mw:0,mt:0,mf:0,mr:0};
 /* adaptativo limpa o que o aparelho lembrava e devolve a qualidade cheia: o vigia desce de novo se precisar */
-function gfxSet(n,agora){n=+n|0;if(n===3&&!MOB)n=5;if(n<0||n>7)n=0;if(n===7&&!QX)QX=gfxFoto();GFX=n;
+function gfxSet(n,agora){n=MOB?2:+n|0;if(n===3&&!MOB)n=5;if(n<0||n>7)n=0;if(n===7&&!QX)QX=gfxFoto();GFX=n;
   try{if(n){localStorage.setItem('vda_gfx',String(n));if(n===7)localStorage.setItem('vda_gfxc',JSON.stringify(QX));}else['vda_gfx','vda_bat','vda_q2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}
   QM.pend=QM.pb=null;QM.w=QM.t=QM.f=QM.r=QM.mw=QM.mt=QM.mf=QM.mr=0;var p=n===7?QX:GFXP[n]||GFXP[gfxAuto()];QL=p.q;MZC=n===3;
   /* jogando: sombra, SAO, brilho e superficie esperam a pausa (QM.pend); agora=true so para quem precisa na hora */
@@ -502,7 +503,7 @@ function gfxItem(k,v){var x=gfxFoto();x.t[k]=v;if(k==='sh'){x.t.shadow=v>0;x.t.s
 function gfxUI(){var o=$('optGfx');if(o)o.value=GFX;var t=gfxFoto().t,v={pr:t.pr,sh:t.shadow?t.sh:0,ms:t.ms,bloom:t.bloom?1:0,sao:t.sao?1:0,grass:t.grass,vis:t.vis,npc:t.npc};
   [].forEach.call(document.querySelectorAll('#optGfxAv select'),function(s){var x=+v[s.dataset.gx],m=null;[].forEach.call(s.options,function(op){if(!m||Math.abs(op.value-x)<Math.abs(m.value-x))m=op;});if(m)s.value=m.value;});gfxRotulo();}
 /* CEO 16/11 (pu9) 'eu clico ali no grafico, ele ja troca; eu queria clicar para ver as opcoes': o clique de verdade ABRE a lista (mesmas opcoes do seletor de OPCOES) e so a escolha troca. O onclick antigo fica intacto para o teste automatico. */
-(function(){var b=document.getElementById('mGfx');if(!b)return;var d=document.createElement('div');d.id='mGfxOp';d.hidden=true;b.parentNode.insertBefore(d,b.nextSibling);
+(function(){var b=document.getElementById('mGfx');if(!b)return;if(MOB){b.hidden=true;document.getElementById('optGfx').disabled=true;}var d=document.createElement('div');d.id='mGfxOp';d.hidden=true;b.parentNode.insertBefore(d,b.nextSibling);
 function monta(){var o=document.getElementById('optGfx');d.innerHTML='';if(!o)return;for(var i=0;i<o.options.length;i++)(function(op){var x=document.createElement('button');x.type='button';x.textContent=(+op.value===(GFXQ!=null?GFXQ:GFX)?'\u25b8 ':'')+op.text;x.style.cssText='font-size:.72em;padding:.25em 0 .25em 1.4em;display:block';x.onclick=function(){/* CEO 24/11: tocar na opcao que ja esta marcada so fecha a lista, nao reaplica nada */if(LOADING&&!LOADGO){GFXQ=+op.value;gfxRotulo();}else if(+op.value!==GFX||GFX===7)gfxSet(+op.value);d.hidden=true;};d.appendChild(x);})(o.options[i]);}
 b.addEventListener('click',function(e){e.stopImmediatePropagation();e.preventDefault();d.hidden=!d.hidden;if(!d.hidden)monta();},true);})();
 /* celular-grafico-maximo: modelos do computador no celular em todo nivel; GFX=3 (MZC) so no celular: sem batata e grama do computador */
@@ -520,7 +521,7 @@ function mzCapim(){var m=MOB,old=CAPIM;try{MOB=false;buildCapim();}catch(x){ERRS
 /* modelos ja vieram na carga; MAXIMO acrescenta a grama do computador */
 function mzCarrega(){/* A grama canonica ja nasce em todo aparelho. */}
 
-function pcForte(){return !MOB&&/RTX|Radeon RX|Apple M/i.test(typeof GPUN==='string'?GPUN:'');}function qDesce(fps){if(pcForte())return false;var dur=fps<26,mole=!dur&&!MOB&&fps<45&&!(fps>28.5&&fps<31.5);QM.r=mole?QM.r+1:0;if(!dur&&QM.r<2)return false;QM.r=0;
+function qDesce(fps){var dur=fps<26,mole=!dur&&!MOB&&fps<45&&!(fps>28.5&&fps<31.5);QM.r=mole?QM.r+1:0;if(!dur&&QM.r<2)return false;QM.r=0;
   var q=QM.pend!=null?QM.pend:QL,b=QM.pb!=null?QM.pb:BAT,aq=null,ab=null;if(q>0&&!b&&!MOB)aq=fps<20?0:q-1;else if(b<2&&(dur||b<1&&fps<35))ab=b+1;else return false;
   /* CEO 24/11 trava com muito NPC: jogando, so a resolucao cai na hora (nao recompila); qualidade e batata esperam a pausa */
   if(S&&S.phase==='play'&&!cenaOn()&&!S.pazFade){if(aq!=null)QM.pend=aq;else{QM.pb=ab;if(QM.pend==null)QM.pend=QL;}var t=ab!=null?QBAT[ab]:QT[aq];PR=Math.min(PR,window.devicePixelRatio||1,t.pr);onResize();return true;}
@@ -1185,9 +1186,6 @@ function pushCircle(pos,rad,list,contato){ /* pos has x,z; returns true if moved
 
 /* CEO 12/11 (hj): inimigo nunca fica dentro da caixa de carro parado; todo caminho que o posiciona passa por aqui */
 var _afc={x:0,z:0,y:0},_afl=[null];
-/* CEO 16/11: viatura do jogador barra o passo de suspeito e bandido, com o policial dentro ou fora */
-function viaturaDentro(x,z){if(Math.abs(C0.x-x)>5||Math.abs(C0.z-z)>5)return false;for(var k=-1;k<=1;k++){var vx=C0.x-Math.sin(C0.yaw)*k*1.4,vz=C0.z-Math.cos(C0.yaw)*k*1.4;if(Math.abs(x-vx)<1.35&&Math.abs(z-vz)<1.35)return true;}return false;}
-function viaturaBarra(n,q){if(n.kind!=='bandido'&&n.kind!=='suspeito'||n.down||Math.abs(C0.v||0)>3||S.uno)return false;return viaturaDentro(q.x+(n.trafficPedX||0)+(n.sx||0),q.z+(n.trafficPedZ||0)+(n.sz||0))&&!viaturaDentro(n.x,n.z);}
 function atiradorForaCarro(n){if(n.kind!=='bandido'&&n.kind!=='suspeito')return false;var i,c,m=false;_afc.x=n.x;_afc.z=n.z;_afc.y=n.y||0;
   for(i=0;i<PCARS.length;i++){c=PCARS[i].col;if(!c)continue;_afl[0]=c;if(pushCircle(_afc,.4,_afl))m=true;}
   if(m){n.x=_afc.x;n.z=_afc.z;}return m;}
@@ -1515,7 +1513,7 @@ function moverTransicaoGalpao(dt){
 }
 function galpaoVisibilidade(){
   var r=ref(),perto=Math.hypot(r.x-79.5,r.z-62.5)<75;
-  var vistaSub=camera.position.y<0&&Math.hypot(camera.position.x-79.5,camera.position.z-62.5)<75;GP.grupo.visible=perto||vistaSub;if(GP.bar)GP.bar.visible=(perto&&P.y<0)||vistaSub;
+  GP.grupo.visible=perto;
   // Keep the light count stable: entering the basement must not compile a new shader variant.
   GP.luzes.forEach(function(l){l.visible=!BAT;l.intensity=perto&&!S.inCar&&P.y<GY?1.8:0;});
   galpaoSomTick();
@@ -3916,163 +3914,6 @@ function genPark(k,cx,cz){
     tree(k,clamp(x,cx-20,cx+20),clamp(z,cz-18,cz+18),rr(1,1.4),q%5===0?'ipe':undefined);
   }
 }
-/* BAILE-BONITO-INI (CEO 17/11): baile funk de rua no Brasil, tudo gasto. Ver ferramentas/correcoes/baile-bonito.py */
-var BB={tem:['caixa-som'],alt:{'caixa-som':1.0,refletor:.32,engradado:.30,tambor:.88,cadeira:.80,mesa:.72,caixote:.30,gerador:.70},
-  pos:{},im:{},mat:{},tick:null,beams:[],fumo:null,lamp:null};
-function bbRnd(seed){var a=seed>>>0;return function(){a=a+0x6D2B79F5>>>0;var t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
-/* textura: cimento rachado, remendo, junta, chiclete, bituca, tampinha, oleo (tile 6 m) */
-function bbCimento(N){var cv=mkCanvas(N,N),g=cv.getContext('2d'),r=bbRnd(901),k=N/1024,i;
-  g.fillStyle='#6d6862';g.fillRect(0,0,N,N);
-  for(i=0;i<5200;i++){var v=90+r()*40|0,s=(1+r()*5)*k;g.fillStyle='rgba('+v+','+(v-4)+','+(v-9)+','+(.10+r()*.18)+')';g.fillRect(r()*N,r()*N,s,s);}
-  for(i=0;i<26;i++){var x=r()*N,y=r()*N,R=(30+r()*150)*k,gr=g.createRadialGradient(x,y,0,x,y,R),esc=r()<.6;
-    gr.addColorStop(0,esc?'rgba(28,24,22,.38)':'rgba(150,140,128,.22)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.beginPath();g.ellipse(x,y,R,R*(.5+r()*.5),r()*3,0,7);g.fill();}
-  for(i=0;i<4;i++){var x=r()*N,y=r()*N,w=(90+r()*220)*k,h=(60+r()*160)*k;g.fillStyle='rgba(128,124,116,.55)';g.fillRect(x,y,w,h);g.strokeStyle='rgba(40,36,34,.5)';g.lineWidth=2*k;g.strokeRect(x,y,w,h);
-    for(var j=0;j<60;j++){g.fillStyle='rgba(70,66,60,.25)';g.fillRect(x+r()*w,y+r()*h,3*k,3*k);}}
-  g.strokeStyle='rgba(34,30,28,.55)';g.lineWidth=3*k;for(i=1;i<4;i++){g.beginPath();g.moveTo(i*N/4,0);g.lineTo(i*N/4,N);g.moveTo(0,i*N/4);g.lineTo(N,i*N/4);g.stroke();}
-  for(i=0;i<11;i++){var x=r()*N,y=r()*N,a=r()*6.3;g.strokeStyle='rgba(22,18,16,'+(.5+r()*.4)+')';g.lineWidth=(1+r()*1.6)*k;g.beginPath();g.moveTo(x,y);
-    for(var j=0;j<18;j++){a+=(r()-.5)*1.1;x+=Math.cos(a)*14*k;y+=Math.sin(a)*14*k;g.lineTo(x,y);if(r()<.12){g.moveTo(x,y);}}g.stroke();}
-  for(i=0;i<70;i++){var x=r()*N,y=r()*N;g.fillStyle='rgba(30,40,24,.55)';for(var j=0;j<5;j++)g.fillRect(x+(r()-.5)*8*k,y+(r()-.5)*8*k,2*k,4*k);}
-  for(i=0;i<420;i++){var x=r()*N,y=r()*N,R=(2+r()*4.5)*k,cl=r();
-    g.fillStyle=cl<.62?'rgba(34,30,30,.85)':cl<.82?'rgba(150,140,138,.9)':cl<.93?'rgba(170,120,130,.8)':'rgba(96,110,120,.85)';
-    g.beginPath();g.ellipse(x,y,R,R*(.6+r()*.4),r()*3,0,7);g.fill();g.fillStyle='rgba(255,255,255,.10)';g.beginPath();g.arc(x-R*.3,y-R*.3,R*.35,0,7);g.fill();}
-  for(i=0;i<70;i++){var x=r()*N,y=r()*N,a=r()*3.14;g.save();g.translate(x,y);g.rotate(a);g.fillStyle='#d9d2c2';g.fillRect(0,0,9*k,2.4*k);g.fillStyle='#b8783e';g.fillRect(9*k,0,3*k,2.4*k);g.restore();}
-  var tc=['#9aa0a6','#8a2a24','#b39a3a','#2a5a34','#d0d0c8'];for(i=0;i<60;i++){var x=r()*N,y=r()*N;g.fillStyle=tc[i%5];g.beginPath();g.arc(x,y,3*k,0,7);g.fill();g.strokeStyle='rgba(0,0,0,.4)';g.lineWidth=1;g.stroke();}
-  return cv;}
-/* textura: metal enferrujado, tinta descascada, escorrido (tile 2 m) */
-function bbFerrugem(N){var cv=mkCanvas(N,N),g=cv.getContext('2d'),r=bbRnd(77),i;
-  g.fillStyle='#2b2a30';g.fillRect(0,0,N,N);
-  for(i=0;i<2600;i++){var v=r();g.fillStyle=v<.5?'rgba(60,58,64,.25)':'rgba(20,18,22,.25)';g.fillRect(r()*N,r()*N,1+r()*4,1+r()*4);}
-  for(i=0;i<46;i++){var x=r()*N,y=r()*N,R=6+r()*44,gr=g.createRadialGradient(x,y,0,x,y,R);gr.addColorStop(0,'rgba(132,62,24,.95)');gr.addColorStop(.55,'rgba(104,48,22,.7)');gr.addColorStop(1,'rgba(70,36,20,0)');g.fillStyle=gr;g.beginPath();g.ellipse(x,y,R,R*(.5+r()*.7),r()*3,0,7);g.fill();
-    for(var j=0;j<30;j++){g.fillStyle='rgba('+(150+r()*40|0)+','+(70+r()*30|0)+',30,.6)';g.fillRect(x+(r()-.5)*R,y+(r()-.5)*R,1+r()*2,1+r()*2);}}
-  for(i=0;i<60;i++){var x=r()*N,y=r()*N,l=20+r()*120;var gr=g.createLinearGradient(x,y,x,y+l);gr.addColorStop(0,'rgba(120,56,22,.75)');gr.addColorStop(1,'rgba(120,56,22,0)');g.fillStyle=gr;g.fillRect(x,y,1.5+r()*3,l);}
-  for(i=0;i<22;i++){var x=r()*N,y=r()*N;g.fillStyle='rgba(84,98,104,.85)';g.beginPath();g.moveTo(x,y);for(var j=0;j<9;j++)g.lineTo(x+(r()-.3)*40,y+(r()-.3)*30);g.closePath();g.fill();}
-  return cv;}
-/* textura atlas da caixa de som: esquerda = frente (falante, corneta, grade rasgada, fita), direita = lado gasto */
-function bbSom(){var cv=mkCanvas(512,256),g=cv.getContext('2d'),r=bbRnd(4242),i;
-  [0,256].forEach(function(o){g.fillStyle='#17161a';g.fillRect(o,0,256,256);for(i=0;i<900;i++){g.fillStyle=r()<.5?'rgba(50,48,54,.35)':'rgba(8,8,10,.35)';g.fillRect(o+r()*256,r()*256,1+r()*3,1+r()*3);}
-    for(i=0;i<14;i++){var x=o+(r()<.5?r()*24:232+r()*24),y=r()*256;g.fillStyle='rgba(122,96,66,.85)';g.fillRect(x,y,4+r()*14,3+r()*8);}
-    for(i=0;i<40;i++){g.strokeStyle='rgba(110,104,100,.35)';g.lineWidth=1;g.beginPath();var x=o+r()*256,y=r()*256;g.moveTo(x,y);g.lineTo(x+(r()-.5)*60,y+(r()-.5)*14);g.stroke();}});
-  g.fillStyle='#0d0d10';g.beginPath();g.arc(128,150,92,0,7);g.fill();
-  for(i=0;i<5;i++){g.strokeStyle='rgba(70,68,74,'+(.5-i*.07)+')';g.lineWidth=3;g.beginPath();g.arc(128,150,88-i*15,0,7);g.stroke();}
-  g.fillStyle='#232228';g.beginPath();g.arc(128,150,22,0,7);g.fill();g.fillStyle='rgba(255,255,255,.08)';g.beginPath();g.arc(121,143,9,0,7);g.fill();
-  g.fillStyle='rgba(0,0,0,.55)';g.beginPath();g.ellipse(160,120,18,10,.6,0,7);g.fill();
-  g.fillStyle='#1d1c22';g.fillRect(78,14,100,34);g.fillStyle='#09090b';g.beginPath();g.moveTo(88,20);g.lineTo(168,20);g.lineTo(140,42);g.lineTo(116,42);g.closePath();g.fill();
-  g.fillStyle='rgba(60,60,66,.55)';for(var y=4;y<252;y+=6)for(var x=4;x<252;x+=6){if(!(x>150&&x<210&&y>180&&y<240))g.fillRect(x,y,2,2);}
-  g.fillStyle='rgba(120,60,26,.8)';for(i=0;i<20;i++){g.fillRect(r()*256,r()*256,2+r()*4,2+r()*4);}
-  function fita(o,x,y,w,h,a){g.save();g.translate(o+x,y);g.rotate(a);g.fillStyle='#a7a8aa';g.fillRect(-w/2,-h/2,w,h);g.fillStyle='rgba(255,255,255,.18)';for(var j=0;j<w;j+=5)g.fillRect(-w/2+j,-h/2,1,h);g.fillStyle='rgba(40,40,40,.35)';g.fillRect(-w/2,h/2-3,w,3);g.restore();}
-  fita(0,40,236,90,22,-.6);fita(0,226,30,70,20,.7);fita(256,60,60,110,24,.2);fita(256,200,210,80,22,-.4);
-  return cv;}
-function bbLona(){var cv=mkCanvas(256,256),g=cv.getContext('2d'),r=bbRnd(55),i;g.fillStyle='#2f5f8e';g.fillRect(0,0,256,256);
-  for(i=0;i<30;i++){var x=r()*256,y=r()*256,R=10+r()*50,gr=g.createRadialGradient(x,y,0,x,y,R);gr.addColorStop(0,r()<.5?'rgba(150,170,180,.45)':'rgba(30,26,20,.45)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-R,y-R,2*R,2*R);}
-  g.strokeStyle='rgba(20,30,40,.4)';g.lineWidth=2;for(i=16;i<256;i+=48){g.beginPath();g.moveTo(i,0);g.lineTo(i,256);g.stroke();}return cv;}
-/* caixa subdividida com amassado para dentro (vertice de quina parado: sem fresta), UV em metros/tile */
-function bbCaixa(w,h,d,tile,amass,seed){var sx=Math.max(1,Math.round(w*2)),sy=Math.max(1,Math.round(h*2)),sz=Math.max(1,Math.round(d*2));
-  var geo=new THREE.BoxGeometry(w,h,d,sx,sy,sz),p=geo.attributes.position,n=geo.attributes.normal,uv=geo.attributes.uv,r=bbRnd(seed),hx=w/2,hy=h/2,hz=d/2,e=1e-4;
-  var ph=[r()*9,r()*9,r()*9];
-  for(var i=0;i<p.count;i++){var x=p.getX(i),y=p.getY(i),z=p.getZ(i),bx=Math.abs(Math.abs(x)-hx)<e,by=Math.abs(Math.abs(y)-hy)<e,bz=Math.abs(Math.abs(z)-hz)<e;
-    if(amass&&(bx+by+bz)===1){var a=amass*Math.max(0,Math.sin(x*2.3+ph[0])*Math.sin(y*1.9+ph[1])*Math.sin(z*2.7+ph[2])+.15*(r()-.5));
-      if(bx)p.setX(i,x-Math.sign(x)*a);else if(by)p.setY(i,y-Math.sign(y)*a);else p.setZ(i,z-Math.sign(z)*a);}
-    var nx=Math.abs(n.getX(i)),ny=Math.abs(n.getY(i)),u=uv.getX(i),v=uv.getY(i);
-    if(nx>.5)uv.setXY(i,u*d/tile,v*h/tile);else if(ny>.5)uv.setXY(i,u*w/tile,v*d/tile);else uv.setXY(i,u*w/tile,v*h/tile);}
-  geo.computeVertexNormals();return geo;}
-/* copias por instancia: 1 geometria + 1 material, 1 desenho */
-function bbInst(nome,geo,mat,lista){if(BB.im[nome]){scene.remove(BB.im[nome]);}var im=new THREE.InstancedMesh(geo,mat,lista.length);
-  geo.computeBoundingBox();var bounds=new THREE.Box3(),box=new THREE.Box3();
-  lista.forEach(function(t,i){var m=bbM(t[0],t[1],t[2],t[3],t[5],t[6],t[4]);im.setMatrixAt(i,m);bounds.union(box.copy(geo.boundingBox).applyMatrix4(m));});
-  geo.boundingSphere=bounds.getBoundingSphere(new THREE.Sphere());/* r128 usa a esfera da geometria para todas as instancias */
-  im.instanceMatrix.needsUpdate=true;im.castShadow=false;im.receiveShadow=true;im.name='baile-'+nome;scene.add(im);BB.im[nome]=im;return im;}
-/* glb do Meshy: so os da lista fixa (existem no disco na montagem). Normaliza: centro x/z, base y=0, altura real da tabela */
-function bbGlb(nome){if(BB.tem.indexOf(nome)<0||!BB.pos[nome]||!THREE.GLTFLoader)return;
-  new THREE.GLTFLoader().load('models/meshy/baile-'+nome+'.glb',function(gl){var mesh=null;gl.scene.updateMatrixWorld(true);gl.scene.traverse(function(o){if(o.isMesh&&!mesh)mesh=o;});if(!mesh)return;
-    var geo=mesh.geometry.clone();geo.applyMatrix4(mesh.matrixWorld);geo.computeBoundingBox();var b=geo.boundingBox,c=new THREE.Vector3();b.getCenter(c);var k=BB.alt[nome]/Math.max(.001,b.max.y-b.min.y);
-    geo.translate(-c.x,-b.min.y,-c.z);geo.scale(k,k,k);if(!geo.attributes.normal)geo.computeVertexNormals();
-    var mat=mesh.material;mat.roughness=1;mat.metalness=0;if(mat.map)mat.map.anisotropy=4;bbInst(nome,geo,mat,BB.pos[nome]);if(nome==='caixa-som'){GP.matCaixa=mat;barParedao();}},undefined,function(e){console.warn('baile glb',nome,e&&e.message);});}
-function bbMonta(cx,cz,sx,g){
-  var r=bbRnd(2026),G=g,palco=g+H_PALCO,i,FER=new THREE.MeshStandardMaterial({map:bbTex(bbFerrugem(MOB?256:512)),roughness:.88,metalness:.15});BB.mat.ferro=FER;
-  /* chao: cimento por cima do gramado do baile (59,9..97,3 x 40,9..56,25) */
-  var ch=new THREE.Mesh(new THREE.PlaneGeometry(37.4,15.35),new THREE.MeshStandardMaterial({map:bbTex(bbCimento(MOB?512:1024),[37.4/6,15.35/6]),roughness:.93,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
-  ch.rotation.x=-Math.PI/2;ch.position.set(78.6,G+.062,48.575);ch.receiveShadow=true;ch.name='baile-chao-cimento';scene.add(ch);
-  /* ferrugem amassada: saia do palco, beira da viga do teto, pilares do arco, colunas de cano, armacao da barraca */
-  var L=[],ax=cx-QW/2+1.6;
-  L.push([bbCaixa(.06,1.02,12.05,2,.02,1),bbM(sx-3.52,g+.5,cz)]);
-  L.push([bbCaixa(.06,.39,12.45,2,.015,2),bbM(sx-3.72,g+8.675,cz)]);
-  [-1,1].forEach(function(l,j){L.push([bbCaixa(.96,5.62,.96,2,.03,3+j),bbM(ax,GY+2.81,cz+l*4)]);});
-  [43.15,54.85].forEach(function(z,j){L.push([bbCaixa(.16,7.3,.16,2,0,5+j),bbM(sx-3.4,palco+3.65,z)]);L.push([bbCaixa(.5,.06,.5,2,0,7+j),bbM(sx-3.4,palco+.03,z)]);});
-  [[62.2,41.9],[65.4,41.9],[62.2,44.4],[65.4,44.4]].forEach(function(p,j){L.push([bbCaixa(.08,2.5,.08,2,0,9+j),bbM(p[0],G+1.25,p[1],0,(r()-.5)*.06,(r()-.5)*.06)]);});
-  var fer=new THREE.Mesh(bbJunta(L),FER);fer.name='baile-ferrugem';fer.receiveShadow=true;scene.add(fer);
-  /* lona da barraca de bebida (pano caido no meio) */
-  var lg=new THREE.PlaneGeometry(3.6,2.9,8,6),lp=lg.attributes.position;for(i=0;i<lp.count;i++){var u=lp.getX(i)/1.8,v=lp.getY(i)/1.45;lp.setZ(i,-.35*(1-u*u)*(1-v*v)+(r()-.5)*.03);}lg.computeVertexNormals();
-  var lona=new THREE.Mesh(lg,new THREE.MeshStandardMaterial({map:bbTex(bbLona()),roughness:.9,side:THREE.DoubleSide}));lona.rotation.x=-Math.PI/2;lona.rotation.z=.04;lona.position.set(63.8,G+2.52,43.15);lona.name='baile-lona';scene.add(lona);
-  /* posicoes das pecas (mesma lista para glb do Meshy e para a versao de codigo). [x,y,z,giroY,escala,giroX,giroZ]; frente do modelo = +Z */
-  var F=-Math.PI/2,P=BB.pos;
-  P['caixa-som']=[];[43.5,54.5].forEach(function(zz){var xx=sx-1.5;[[0,0,-.38,1,.03],[.02,0,.39,1,-.04],[.06,1,-.33,1,-.07],[-.03,1,.41,.96,.05],[.1,1.96,.02,.8,.13]].forEach(function(o){P['caixa-som'].push([xx+o[0],palco+o[1],zz+o[2],F+o[4],o[3]]);});});
-  P['caixa-som'].push([sx-3.05,palco,46,F+.25,.6,-1.1,0],[sx-3.05,palco,52,F-.2,.6,-1.1,0]);
-  P.refletor=[[sx-3.55,g+8.18,44,F,1,.6,0],[sx-3.55,g+8.18,46.5,F,1,.6,0],[sx-3.55,g+8.18,51.5,F,1,.6,0],[sx-3.55,g+8.18,54,F,1,.6,0],[ax+.5,GY+5.62,cz-4,-F,1,.5,0],[ax+.5,GY+5.62,cz+4,-F,1,.5,0]];
-  P.tambor=[[61.6,G,43.0,0,1],[88.2,G,41.95,1,1],[77.5,G,42.1,2,1],[80.6,G,42.1,3,1]];
-  P.engradado=[];[[63.2,42.2,4],[63.0,55.6,5],[82.3,42.1,3],[70.0,42.0,4]].forEach(function(p){for(var j=0;j<p[2];j++){var col=j%2,lev=j>>1;P.engradado.push([p[0]+col*.52+(r()-.5)*.05,G+lev*.3,p[1]+(r()-.5)*.06,(r()-.5)*.3,1]);}});
-  P.mesa=[[64.8,G,42.75,.2,1],[85,G,42.5,-.3,1],[66.3,G,55.4,.5,1]];
-  P.cadeira=[[64.2,G,43.6,2.6,1],[65.6,G,43.4,-2.4,1],[84.3,G,43.3,2.9,1],[85.8,G,43.1,-2.6,1],[65.6,G,54.7,.4,1],[67.1,G,55.0,-.6,1],[71.5,G,42.3,1.2,1,Math.PI/2,0],[60.9,G,54.6,2,1]];
-  P.caixote=[[89.0,G,42.6,.1,1],[89.0,G+.3,42.62,-.1,1],[62.6,G,43.8,.4,1],[63.1,G,43.9,-.2,1],[62.85,G+.3,43.85,.9,1],[87.0,G,43.2,.3,1]];
-  P.gerador=[[86.8,G,42.1,.35,1]];
-  /* colisao so do que fica de pe e encostado no muro (fora da rota do portao, do galpao e do palco) */
-  var colPor=function(nome,meio){(P[nome]||[]).forEach(function(t){if(t[1]>G+.01)return;var c=[t[0]-meio,t[2]-meio,t[0]+meio,t[2]+meio,BB.alt[nome]];c.nome='baile-deco-'+nome;COL.push(c);});};
-  colPor('tambor',.3);if(BB.tem.indexOf('gerador')>=0)colPor('gerador',.45);
-  if(BB.tem.indexOf('engradado')>=0)[[63.46,42.2],[63.26,55.6],[82.56,42.1],[70.26,42.0]].forEach(function(p){var c=[p[0]-.52,p[1]-.2,p[0]+.52,p[1]+.2,.6];c.nome='baile-deco-engradado';COL.push(c);});
-  /* versao de codigo (fica ate o glb chegar): caixa de som gasta, tambor enferrujado, cabeca de refletor */
-  var sg=bbCaixa(.75,1,.6,1,.012,31);sg.translate(0,.5,0);var su=sg.attributes.uv,sn=sg.attributes.normal;
-  /* UV da frente: recalcula pela posicao (o amassado nao estica a textura) */
-  var sp=sg.attributes.position;for(i=0;i<sp.count;i++){var nz=sn.getZ(i),nx=sn.getX(i),ny=sn.getY(i);
-    if(nz>.5)su.setXY(i,(sp.getX(i)+.375)/.75*.5,sp.getY(i));else if(Math.abs(nx)>.5)su.setXY(i,.5+(sp.getZ(i)+.3)/.6*.5,sp.getY(i));else su.setXY(i,.5+(sp.getX(i)+.375)/.75*.5,(sp.getZ(i)+.3)/.6);}
-  BB.mat.som=new THREE.MeshStandardMaterial({map:bbTex(bbSom()),roughness:.85,metalness:0});BB.mat.som.map.wrapS=BB.mat.som.map.wrapT=THREE.ClampToEdgeWrapping;
-  bbInst('caixa-som',sg,BB.mat.som,P['caixa-som']);
-  var tg=new THREE.CylinderGeometry(.29,.29,.88,14,3,false);tg.translate(0,.44,0);var tp=tg.attributes.position;for(i=0;i<tp.count;i++){var yy=tp.getY(i);if(yy>.05&&yy<.83){var a=Math.atan2(tp.getZ(i),tp.getX(i)),dn=.03*Math.max(0,Math.sin(a*3+yy*7));tp.setX(i,tp.getX(i)*(1-dn/.29));tp.setZ(i,tp.getZ(i)*(1-dn/.29));}}
-  var tuv=tg.attributes.uv;for(i=0;i<tuv.count;i++)tuv.setXY(i,tuv.getX(i)*.9,tuv.getY(i)*.44);tg.computeVertexNormals();
-  bbInst('tambor',tg,FER,P.tambor);
-  var rg=bbCaixa(.35,.32,.25,1,0,41);rg.translate(0,.16,0);bbInst('refletor',rg,FER,P.refletor);
-  /* fiacao aparente + varal de lampada de gambiarra (no lugar das bandeirinhas de festa limpa) */
-  var fio=[],lamp=[],lc=[],cor=new THREE.Color();
-  function catenaria(a,b,flecha,passo,lampada){var n=Math.max(2,Math.round(a.distanceTo(b)/.35)),prev=null;for(var j=0;j<=n;j++){var t=j/n,p=a.clone().lerp(b,t);p.y-=flecha*4*t*(1-t);if(prev)fio.push(prev.x,prev.y,prev.z,p.x,p.y,p.z);prev=p;}
-    if(!lampada)return;var m=Math.round(a.distanceTo(b)/passo);for(var j=1;j<m;j++){var t=j/m,p=a.clone().lerp(b,t);p.y-=flecha*4*t*(1-t)+.09;lamp.push(p);var q=r();
-      if(q<.08)cor.setRGB(.06,.05,.05);else if(q<.2)cor.setRGB(2.2,.25,.2);else if(q<.3)cor.setRGB(.3,1.8,.4);else if(q<.38)cor.setRGB(.35,.6,2.4);else cor.setRGB(2.4,1.55,.65);lc.push(cor.clone());}}
-  var V=THREE.Vector3;for(i=0;i<5;i++)catenaria(new V(63.5+i*5.4,G+4.3+r()*.4,41.6),new V(66.5+i*5.4,G+5.0+r()*.4,56.2),.9+r()*.4,.85,true);
-  catenaria(new V(62,G+4.6,41.6),new V(sx-3.4,palco+6.5,43.15),.7,.85,true);catenaria(new V(62,G+5.1,56.2),new V(sx-3.4,palco+6.5,54.85),.7,.85,true);
-  catenaria(new V(88.0,G+.6,55.9),new V(sx-3.4,palco+2.2,54.85),.4,1,false);catenaria(new V(88.0,G+.6,55.9),new V(sx-1.5,palco+3.6,54.5),.6,1,false);
-  catenaria(new V(sx-3.4,palco+6.8,43.15),new V(sx-3.4,palco+6.8,54.85),.5,1,false);catenaria(new V(ax,GY+5.5,cz-4),new V(63,G+4.5,41.6),.8,1,false);
-  for(i=0;i<4;i++)catenaria(new V(64+i*7,G+3.2,41.55),new V(67.5+i*7,G+3.0+r(),41.55),.5,1,false);
-  var fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.Float32BufferAttribute(fio,3));var fl=new THREE.LineSegments(fg,new THREE.LineBasicMaterial({color:0x0c0b0b}));fl.name='baile-fiacao';scene.add(fl);
-  P.refletor.forEach(function(t){lamp.push(new V(t[0]-.13*Math.cos(t[5]||0)*(t[3]<0?1:-1),t[1]+.12,t[2]));lc.push(new THREE.Color(2.6,2.3,1.8));});
-  var lm=new THREE.InstancedMesh(new THREE.SphereGeometry(.065,7,5),new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),lamp.length);
-  var lampBounds=new THREE.Box3();lamp.forEach(function(p,j){lm.setMatrixAt(j,bbM(p.x,p.y,p.z));lm.setColorAt(j,lc[j]);lampBounds.expandByPoint(p);});
-  lm.geometry.boundingSphere=lampBounds.expandByScalar(.1).getBoundingSphere(new THREE.Sphere());
-  lm.instanceMatrix.needsUpdate=true;lm.instanceColor.needsUpdate=true;lm.name='baile-lampadas';scene.add(lm);BB.lamp=lm;
-  /* facho dos refletores: cone translucido, balanca devagar (0,05 a 0,08 Hz) */
-  var cg=new THREE.ConeGeometry(1,1,18,1,true);cg.translate(0,-.5,0);cg.rotateX(-Math.PI/2);
-  var gc=mkCanvas(4,64),gg=gc.getContext('2d'),gr=gg.createLinearGradient(0,0,0,64);gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(.75,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,1)');gg.fillStyle=gr;gg.fillRect(0,0,4,64);
-  var gt=new THREE.CanvasTexture(gc);
-  P.refletor.slice(0,4).forEach(function(t,j){var m=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({map:gt,color:j%3===0?0xffd9a0:j===1?0xff4fa3:0x38c8ff,transparent:true,opacity:.075,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
-    /* Dissipa a superficie do cone ao atravessar a camera. O facho distante permanece igual. */
-    m.material.onBeforeCompile=function(sh){
-      sh.vertexShader='varying float fachoZ;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\nfachoZ=-mvPosition.z;');
-      sh.fragmentShader='varying float fachoZ;\n'+sh.fragmentShader.replace('#include <alphamap_fragment>','#include <alphamap_fragment>\ndiffuseColor.a*=smoothstep(.25,3.,fachoZ);');
-    };
-    m.position.set(t[0]-.2,t[1]+.08,t[2]);m.renderOrder=3;m.name='baile-facho';m.visible=fachoDoPalco(j);scene.add(m);BB.beams.push({m:m,z:t[2],f:.05+j*.009,ph:j*1.7,hue:j===1?.92:j===2?.53:-1});});
-  /* fumaca leve rente ao chao, perto do palco */
-  if(!MOB){var fc=mkCanvas(64,64),f2=fc.getContext('2d'),fr=f2.createRadialGradient(32,32,0,32,32,32);fr.addColorStop(0,'rgba(255,255,255,.55)');fr.addColorStop(1,'rgba(255,255,255,0)');f2.fillStyle=fr;f2.fillRect(0,0,64,64);
-    var fp=[];for(i=0;i<14;i++)fp.push(72+r()*17,G+.6+r()*1.6,43.5+r()*11);var fgm=new THREE.BufferGeometry();fgm.setAttribute('position',new THREE.Float32BufferAttribute(fp,3));
-    var fm=new THREE.Points(fgm,new THREE.PointsMaterial({map:new THREE.CanvasTexture(fc),color:0x9a8ab0,size:9,sizeAttenuation:true,transparent:true,opacity:.16,depthWrite:false}));fm.name='baile-fumaca';fm.renderOrder=2;fm.visible=PALCO_EFEITOS[BAT].fumaca;scene.add(fm);BB.fumo=fm;}
-  /* latas amassadas no chao (sem rotulo) */
-  var lt=new THREE.CylinderGeometry(.033,.033,.12,8),lat=new THREE.InstancedMesh(lt,new THREE.MeshStandardMaterial({roughness:.5,metalness:.4}),46),lcs=[0x7a2622,0x8a8c90,0x2a5a34,0x9a7a2a,0x3a3a44];
-  for(i=0;i<46;i++){var x=61+r()*28,z=41.9+r()*14,deit=r()<.7,s=.6+r()*.4;lat.setMatrixAt(i,bbM(x,G+.062+(deit?.033:.06*s),z,r()*6.3,deit?Math.PI/2:0,0,1).multiply(new THREE.Matrix4().makeScale(1,s,1)));lat.setColorAt(i,cor.setHex(lcs[i%5]));}
-  lat.instanceMatrix.needsUpdate=true;lat.instanceColor.needsUpdate=true;lat.name='baile-latas';scene.add(lat);
-  BB.tem.forEach(bbGlb);
-}
-function bbTick(t){if(!BB.lamp)return;var fim=!!S.baileFim;
-  BB.beams.forEach(function(b,i){b.m.visible=!fim&&fachoDoPalco(i);if(!b.m.visible)return;var a=Math.sin(t*b.f*6.283+b.ph),tx=80+a*5,tz=b.z+Math.cos(t*b.f*4.4+b.ph)*2.5,L=Math.hypot(tx-b.m.position.x,0-b.m.position.y,tz-b.m.position.z);
-    b.m.scale.set(2.2,2.2,L);b.m.lookAt(tx,GY,tz);if(b.hue>=0)b.m.material.color.setHSL((b.hue+.05*Math.sin(t*.07+b.ph)+1)%1,1,.6);});
-  if(BB.fumo)BB.fumo.visible=!fim&&PALCO_EFEITOS[BAT].fumaca;
-  if(BB.fumo&&BB.fumo.visible){var pa=BB.fumo.geometry.attributes.position;for(var i=0;i<pa.count;i++){var x=pa.getX(i)+Math.sin(t*.13+i)*.004+.0015;if(x>89)x=72;pa.setX(i,x);}pa.needsUpdate=true;}
-  BB.lamp.visible=!fim;}
-/* BAILE-BONITO-FIM */
 var BAILE={},H_PALCO=1,COBR=[];/* COBR: pontos de abrigo (agachar atras protege, CEO 05/11 estilo Borderlands) */
 // Equipamento fixo da cobertura. Cores e volumes permanecem se o JPEG faltar.
 var USOS_LAJES={casas:[],pisos:[],lotes:[],cadeiras:[],mesas:[]};
@@ -4406,7 +4247,7 @@ function genBaile(k,cx,cz){
   /* caixas de som */
   [-5.5,5.5].forEach(function(o){
     var zz=cz+o,xx=sx-1.5;
-    /* baile-bonito: paredao gasto de caixas desiguais entra em bbMonta */
+    for(var s=0;s<3;s++){k.B.add(BOX,xx,g+1+s*1.25,zz,1.5,1.2,1.5,0,C(0x1a1822),.2,0);k.E.quadV(xx,g+1.6+s*1.25,zz,1.0,.35,0,new THREE.Color(2.2,.3,1.4));}
     COL.push([xx-.75,zz-.75,xx+.75,zz+.75,4.7]);
   });
   /* Apoio de saida: o ultimo salto sobe 1,1 m, sem degrau de 1,35 m. */
@@ -4431,12 +4272,15 @@ function genBaile(k,cx,cz){
   /* festa: tigela e plaquinha do cachorro */
   k.B.add(CYL8,cx+8.5,GY,cz+4,.55,.18,.55,0,C(0xd8688a),0,0);k.E.add(CYL8,cx+8.5,GY+.14,cz+4,.4,.04,.4,0,new THREE.Color(1.2,.9,.5),0,0);
   BAILE.bowl=[cx+8.5,GY,cz+4];
-  /* baile-bonito: bandeirinhas limpas sairam; varal de lampada de gambiarra em bbMonta */
+  /* bandeirinhas */
+  for(t=0;t<18;t++){
+    var bx=cx-18+t*2.2,by=GY+5.3-Math.sin(((t%6)/6)*Math.PI)*.0;
+    [41.5-0.5,56.5+0.5].forEach(function(zz){k.E.add(BOX,bx,by,zz,.5,.5,.12,0,LITS[(t+(zz>49?1:0))%4].clone().multiplyScalar(.9),0,0);});
+  }
   tree(k,cx-12,cz+3.5,1.1);tree(k,cx-12,cz-6.5,1.1);
   for(var m=0;m<280;m++){var zz=41+(m%70)*.21,xx=m<140?60.1+(m%7)*.17:96.4+(m%7)*.13;
     tuft(k.B,xx,GY+.04,zz,.55+(m%5)*.12);}
   genGalpao(k,cx,cz);
-  bbMonta(cx,cz,sx,g);
 }
 
 /* B2a: original procedural building, merged boxes, no extra image assets. */
@@ -4540,7 +4384,7 @@ function genGalpao(k,cx,cz){
   U.add(CYL12,73.4,-4,65.5,.6,.16,.6,0,C(0xbe8b63),0,0);
   UE.add(CYL12,73.4,-3.86,65.5,.45,.02,.45,0,new THREE.Color(.5,.3,.16),0,0);
   [57,67.9].forEach(function(z){caixa(UE,79.5,z>60?-3.85:-1,z,33,.1,.08,new THREE.Color(1.8,.15,.8));});
-  [61.7,97.3].forEach(function(x){caixa(UE,x,-.9,62.5,.035,.035,10,new THREE.Color(.1,1.4,1.8));});
+  [64,87].forEach(function(x){caixa(UE,x,-3.85,62.5,.08,.1,10,new THREE.Color(.1,1.4,1.8));});
   // Original abstract graffiti, no text, logo or city reference.
   for(var i=0;i<7;i++){var pts=[[-.6,-.45],[-.25,.25],[-.5,.6],[.1,.4],[.5,.75],[.3,.1],[.65,-.2],[.1,-.15],[-.1,-.65]];
     UE.polyV(75+i*1.1,-2.5+Math.sin(i)*.35,56.68,pts,0,new THREE.Color(.2+i*.12,.45,1.2-i*.1));
@@ -4674,64 +4518,6 @@ function profLevanta(n,k){/* levantar (fala 12): 12 cm para a frente e so depois
   n.x=f[0]-Math.sin(f[2])*.12*e;n.z=f[1]-Math.cos(f[2])*.12*e;n.m.position.x=n.x;n.m.position.z=n.z;
   n.yaw=f[2]+d*w;n.m.rotation.y=n.yaw;if(S.profCena&&S.profCena.n===n)S.profCena.yaw=n.yaw;
 }
-/* Mesas nas laterais do salão de baixo; a entrada da galeria, o sofá e a escada ficam livres. */
-var BAR_SALA=[
-  {marca:'pol',x:68.9,z:60.0,a:.15,c:[[-.92,.12,0xce3525],[.95,.44,0xe0b529]]},
-  {marca:'trama',x:72.2,z:58.5,a:-.1,c:[[-.93,.35,0x29814b],[.94,.06,0xc93529]]},
-  {marca:'pol',x:81.4,z:66.95,a:.27,c:[[-.98,-.17,0xe1ad26],[.98,-.42,0x2d874a]]}
-];
-function barLote(peca,nome,poses,solido){
-  if(!GP.bar||GP.bar.getObjectByName(nome)||!poses.length)return;
-  var g=peca.geometry.clone(),mat=peca.material,m=new THREE.InstancedMesh(g,mat,poses.length);
-  g.computeBoundingBox();var bounds=new THREE.Box3(),bb=new THREE.Box3();
-  poses.forEach(function(p,i){
-    var tr=bbM(p[0],0,p[1],p[2],p[3]||0,0,1),chao=p[4];
-    bb.copy(g.boundingBox).applyMatrix4(tr);tr.elements[13]=chao-bb.min.y;
-    bb.copy(g.boundingBox).applyMatrix4(tr);bounds.union(bb);m.setMatrixAt(i,tr);
-    if(p[5])m.setColorAt(i,C(p[5]));
-    if(solido){var b=[bb.min.x,bb.min.z,bb.max.x,bb.max.z,bb.max.y-chao];b.minY=bb.min.y;b.maxY=bb.max.y;b.nome=nome+':'+i;COL_SUB.push(b);if(nome==='bar-cadeiras'){var a=soltoRegistra(m,i,tr,b,null,'cadeira');a.pisoLocal=chao;a.salaBaixa=true;}}
-  });
-  m.name=nome;m.castShadow=m.receiveShadow=false;
-  // Three r128 testa a esfera da geometria por lote. Nunca alterar a geometria da cadeira do mercado.
-  g.boundingSphere=bounds.getBoundingSphere(new THREE.Sphere());m.frustumCulled=true;
-  GP.bar.add(m);GP.decorDrawBudget++;return m;
-}
-function barCadeiras(peca){
-  if(peca)GP.cadeiraBar=peca;if(!GP.barMesas||!GP.cadeiraBar)return;
-  var p=[];BAR_SALA.forEach(function(t){t.c.forEach(function(c){p.push([t.x+c[0],t.z+c[1],Math.atan2(-c[0],-c[1]),0,-3.995,c[2]]);});});
-  barLote(GP.cadeiraBar,'bar-cadeiras',p,true);
-}
-function barParedao(){
-  if(!GP.formaCaixa||!GP.matCaixa||!GP.som||GP.som.userData.meshy)return;
-  var g=GP.formaCaixa.clone();g.computeBoundingBox();var b=g.boundingBox,c=b.getCenter(new THREE.Vector3()),tam=b.getSize(new THREE.Vector3());
-  g.translate(-c.x,-b.min.y,-c.z);g.scale(1.02/tam.x,1.43/tam.y,.70/tam.z);g.translate(0,.006,0);
-  var antiga=GP.som.geometry;g.boundingSphere=antiga.boundingSphere.clone();
-  GP.som.geometry=g;GP.som.material=GP.matCaixa;GP.som.userData.meshy=true;antiga.dispose();
-}
-function barMonta(){
-  GP.bar=new THREE.Group();GP.bar.name='bar-inferior';GP.decor.add(GP.bar);
-  modeloDeBar('models/ambiente/bar-galpao.glb',function(gl){
-    var marcas=['pol','trama'],pecas={};gl.scene.traverse(function(o){if(o.isMesh)pecas[o.name]=o;});
-    if(!marcas.every(function(n){return pecas['mesa_'+n]&&pecas['lata_'+n];})){console.warn('Mobiliário do galpão incompleto');return;}
-    if(typeof coberturaLatas==='function')coberturaLatas(pecas);
-    GP.barMesas=true;barCadeiras();if(pecas.paredao_galpao){GP.formaCaixa=pecas.paredao_galpao.geometry;barParedao();}
-    // O lote anterior já distribui as peças dos outros andares. Retirar somente as do salão.
-    GP.lixo.forEach(function(im,j){var keep=[12,5,0][j];
-      im.instanceMatrix.array.copyWithin(keep*16,100*16,im.count*16);im.instanceColor.array.copyWithin(keep*3,100*3,im.count*3);
-      im.count-=100-keep;im.instanceMatrix.needsUpdate=im.instanceColor.needsUpdate=true;});
-    marcas.forEach(function(nome){
-      var mesa=pecas['mesa_'+nome],lata=pecas['lata_'+nome],mp=[],lp=[],piso=-3.995;
-      mesa.geometry.computeBoundingBox();var b=mesa.geometry.boundingBox,h=b.max.y-b.min.y;
-      BAR_SALA.forEach(function(t,i){if(t.marca!==nome)return;
-        mp.push([t.x,t.z,t.a,0,piso]);
-        lp.push([t.x+.19,t.z-.15,.4+i*.6,0,piso+h],[t.x-.12,t.z+.16,2.7+i,0,piso+h]);
-        [[-.53,-.43,.28],[.34,.69,2.3],[-.75,.63,1.2],[.82,-.38,4.0],[.16,-.94,5.33]].forEach(function(o,k){lp.push([t.x+o[0],t.z+o[1],o[2]+.45*i,k===3?0:Math.PI/2,piso]);});
-      });
-      barLote(mesa,'bar-mesas-'+nome,mp,true);barLote(lata,'bar-latas-'+nome,lp,false);
-    });
-  },function(){console.warn('Galpão: conservada a decoração anterior');});
-}
-
 function galpaoDecor(){
   GP.decor=new THREE.Group();GP.decor.name='galpao-decor';scene.add(GP.decor);GP.faixas=[];GP.lixo=[];
   var rnd=mulberry32(8769),matrix=new THREE.Matrix4(),quat=new THREE.Quaternion(),pos=new THREE.Vector3(),sc=new THREE.Vector3(),e=new THREE.Euler();
@@ -4772,7 +4558,7 @@ function galpaoDecor(){
   GP.som=inst(tmp.geometry,tmp.material,32,'galpao-paredoes');GP.somPos=[];
   [GY+.045,-4].forEach(function(y,layer){
     [64,68,76,80].forEach(function(x){[0,1].forEach(function(h){GP.somPos.push([x,y+h*1.43,layer?57.65:67.65,layer?0:Math.PI]);});});
-    [0,1].forEach(function(h){[0,1,2,3].forEach(function(j){GP.somPos.push([layer?87.6:63.3,y+h*1.43,59.1+j*1.65,layer?-Math.PI/2:Math.PI/2]);});});
+    [0,1].forEach(function(h){[0,1,2,3].forEach(function(j){GP.somPos.push([layer?87.6:63.3,y+h*1.43,59.1+j*1.65,Math.PI/2]);});});
   });
   GP.somPos.forEach(function(p,i){put(GP.som,i,p[0],p[1],p[2],1,1,1,p[3]);});GP.som.instanceMatrix.setUsage(THREE.DynamicDrawUsage);GP.som.instanceMatrix.needsUpdate=true;
   // Arte Codex, quatro faixas distintas em um atlas 2x2, sem desenho procedural.
@@ -4806,7 +4592,7 @@ function galpaoDecor(){
       im.setColorAt(i,new THREE.Color(type===0?[0xe2d7b7,0xaec9cb,0xdca67c][i%3]:type===1?[0x9b3f38,0xddd1a1,0x387b72][i%3]:[0xbbbdbe,0x498888,0xb47757][i%3]));
     }im.instanceMatrix.needsUpdate=true;im.instanceColor.needsUpdate=true;
   });
-  sofaMonta(GP.decor);GP.decorDrawBudget=9;barMonta();/* sofa-professor: +2 (sofa e sombra de contato) */
+  sofaMonta(GP.decor);GP.decorDrawBudget=9;
 }
 // O topo fica amarrado; a barriga do tecido cede ao contato e relaxa quando o jogador sai.
 function faixaToca(agora){
@@ -5379,6 +5165,16 @@ function capimFirmeReserva(bk){
     vegFirmeMaterial(im.material,-2,bk.far);
   }
 }
+/* Acostamento da chegada: relva baixa junto ao asfalto, transição gradual para o mato alto. */
+function aparaMargemSul(M,inicio,fim){
+  var borda=HWY_Z-HWY_W/2;
+  for(var i=inicio*16;i<fim*16;i+=16){
+    var x=M[i+12],z=M[i+14];
+    if(x<8||x>78||z<borda-5||z>borda+1)continue;
+    var peso=Math.min(1,(x-8)/4,(78-x)/4,(z-borda+5)/2,borda+1-z);
+    M[i+5]*=1-.87*peso;
+  }
+}
 function capimAAA(im,mat,g0,nq){capimTexAplica(g0,mat);
   var c=new THREE.Color(),rgb=function(h){c.setHex(h);return [c.r,c.g,c.b];},B=32,NB=20,nc=48,CG=4,cg={},E,bk,k,mesh,meshes=[im],caps=[0,14000,9000,8000],u=im.userData,wn=[];
   var q={M:im.instanceMatrix.array.slice(0,nq*16),C:im.instanceColor?im.instanceColor.array.slice(0,nq*3):new Float32Array(nq*3),n:nq};
@@ -5406,6 +5202,10 @@ function capimAAA(im,mat,g0,nq){capimTexAplica(g0,mat);
       if(mole){E.hs=.2+.8*Math.min(1,sg*1.3);if(sg<.5)E.dr=1-sg*2;return sg>=.6?1:Math.min(1,sg*1.6);}
       if(sg<.6)E.hs=Math.min(E.hs,.35+sg);return 1;}};
   bk=capimGera(E);bk.mesh=meshes;bk.E=E;
+  for(var bz=Math.floor((HWY_Z-HWY_W/2-5-E.Z0)/B);bz<=Math.floor((HWY_Z-HWY_W/2+1-E.Z0)/B);bz++)
+    for(var bx=Math.floor((8-E.X0)/B);bx<=Math.floor((78-E.X0)/B);bx++)for(k=0;k<4;k++){
+      var bloco=bz*NB+bx,ini=bk.ini[k][bloco];aparaMargemSul(bk.bag[k].M,ini,ini+bk.cnt[k][bloco]);
+    }
   for(k=1;k<4;k++){var mt=mat.clone();mt.onBeforeCompile=mat.onBeforeCompile;mesh=new THREE.InstancedMesh(capimGeo(k),mt,caps[k]);mesh.setColorAt(0,c);mesh.frustumCulled=false;mesh.count=0;scene.add(mesh);meshes.push(mesh);}
   if(!im.instanceColor)im.setColorAt(0,c);
   capimFirmeReserva(bk);u.n=bk.bag[0].n;u.M=bk.bag[0].M;u.Cc=bk.bag[0].C;u.cap=Math.floor(u.n*qT().grass);u.bk=bk;
@@ -5452,7 +5252,7 @@ function buildCapim(){
     var tt=rnd(),s=MOB?.8+rnd()*1.1:(tt<.4?.6+rnd()*.5:tt<.8?1+rnd()*.8:1.7+rnd()*1.2)*(sg<.6?.35+sg:1);e.set(0,rnd()*6,0);q.setFromEuler(e);if(MOB)sc.set(s,s*(.7+rnd()*.8),s);else{var ww=.7+s*.3;sc.set(ww,s*(.8+rnd()*.7),ww);}v.set(x,chaoDoCapim(x,z)-.03,z);m4.compose(v,q,sc);im.setMatrixAt(n,m4);
     c.setHex(GRN[Math.floor(rnd()*GRN.length)]).multiplyScalar(MOB?.42+rnd()*.2:.66+rnd()*.6);im.setColorAt(n,c);n++;
   }
-  im.count=n;im.userData.n=n;im.userData.cap=Math.floor(n*qT().grass);im.userData.M=im.instanceMatrix.array.slice(0,n*16);im.userData.Cc=im.instanceColor.array.slice(0,n*3);
+  aparaMargemSul(im.instanceMatrix.array,0,n);im.count=n;im.userData.n=n;im.userData.cap=Math.floor(n*qT().grass);im.userData.M=im.instanceMatrix.array.slice(0,n*16);im.userData.Cc=im.instanceColor.array.slice(0,n*3);
   im.frustumCulled=false;CAPIM=im;im.instanceColor.needsUpdate=true;scene.add(im);capimTick(true);
 }
 /* CEO 08/11 perf ("4090 a 20 fps"): 72 mil tufos eram desenhados sempre (1,16 mi tris). Anel de capim: so o que esta a ate CAPIM_R m e nao atras da camera.
@@ -6561,13 +6361,6 @@ function bomPrecoCasca(k){
   var CBt=new Batch();function cad_(x,yy,z,w,h,d){CBt.add(BOX,x,yy,z,w,h,d,0,C(0xc2bc9e),.12,.015);}
   [[6.3,46.55],[6.8,46.55],[6.3,47.05],[6.8,47.05]].forEach(function(a){cad_(a[0],y,a[1],.06,.34,.06);});
   cad_(6.55,y+.33,46.8,.65,.09,.62);cad_(6.85,y+.39,46.8,.07,.65,.62);CADEIRA.mesh=CBt.mesh(MAT,true,true);scene.add(CADEIRA.mesh);
-  modeloDeBar('models/ambiente/cadeira-monobloco.glb',function(gl){
-    var alvo=CADEIRA.mesh,peca=gl.scene.children[0];if(!alvo||!peca||!peca.isMesh)return;
-    barCadeiras(peca);TERREO_KIT.cadeira(peca);
-    var antiga=alvo.geometry;antiga.computeBoundingBox();var ge=peca.geometry.clone();
-    ge.scale(1.13,.95,1);ge.rotateY(-Math.PI/2);ge.translate(CADEIRA.x0,antiga.boundingBox.min.y,CADEIRA.z0);
-    ge.computeBoundingBox();ge.computeBoundingSphere();alvo.geometry=ge;alvo.material=peca.material;alvo.userData.monobloco=true;antiga.dispose();
-  },function(){console.warn('Cadeira do mercadinho: mantido o modelo inicial');});
   box_(20.4,y,54.4,.8,.65,.75,0x8a8b80);box_(20.4,y+.65,54.4,1,.15,.9,0xb6b4a3);box_(20.4,y+.8,54.4,.67,.025,.58,0x545e59);
   MERC.doorGroup=new THREE.Group();MERC.doorGroup.position.set(7.2,y,43.3);var dmT=new THREE.MeshStandardMaterial({color:0xffffff,metalness:.32,roughness:.48}),dmE=new THREE.MeshLambertMaterial({color:C(0x3c5556)}),dmI=new THREE.MeshLambertMaterial({color:C(0x16191b)});/* CEO 09/11: lado de dentro (face +x, loja) escuro; esmalte so na rua */new THREE.TextureLoader().load('texturas/posto/esmalte.webp',function(t){t.encoding=THREE.sRGBEncoding;t.anisotropy=4;dmT.map=t;dmT.needsUpdate=true;},undefined,function(){dmT.color.copy(C(0x3c5556));});var dm=new THREE.Mesh(new THREE.BoxGeometry(.1,2.35,2).translate(0,1.175,1),[dmI,dmT,dmE,dmE,dmE,dmE]);dm.castShadow=dm.receiveShadow=true;MERC.doorGroup.add(dm);PORTA_FOLHAS++;/* Puxadores tubulares dos dois lados: a folha corre paralela à fachada. */
   var ferragens=new Batch();[-1,1].forEach(function(lado){ferragens.add(puxadorPrimitiva(),lado*.058,0,1.78,1,1,1,lado<0?-Math.PI/2:Math.PI/2,C(0xb6beba),0,0);});var nvF=ferragens.p.length/3;MERC.doorGroup.add(ferragens.mesh(MAT,false,true));PORTAS.push({batch:ferragens,v0:0,v1:nvF,vertices:nvF,lados:2});/* portao 22/11: folha de correr no inventario */scene.add(MERC.doorGroup);MERC.open=0;
@@ -7483,7 +7276,7 @@ function nivelPlanta(nivel,w,d,h,semente,opcoes){
     }
     if(lampada){lampada.intensity=perto?2.25:0;if(perto)lampada.position.copy(perto.foco);}
   }return {criar,cadeira,tick,casas:LUGARES,mundo:lugarMundo,luz:()=>lampada};})();
-function casinhaInterior(){TERREO_KIT.criar();
+function casinhaInterior(){TERREO_KIT.criar();modeloDeBar('models/ambiente/cadeira-monobloco.glb',g=>TERREO_KIT.cadeira(g.scene.getObjectByProperty('isMesh',true)),()=>ERRS.push('cadeira do térreo'));
   var G=new THREE.Group(),B=new Batch(),y=GY,T='texturas/casa-marlene/',PI=Math.PI;B.nw=1;CASINHA.grupo=G;G.visible=false;scene.add(G);
   CASINHA.salaObjetos=[];
   function b(x,yy,z,w,h,d,c){B.add(BOX,x,yy,z,w,h,d,0,C(c),.12,.02);CASINHA.salaObjetos.push(new THREE.Box3(new THREE.Vector3(x-w/2,yy,z-d/2),new THREE.Vector3(x+w/2,yy+h,z+d/2)));}
@@ -9243,23 +9036,19 @@ var ROUPA_PISTA=['carlos','vizinha','edvaldo','toinho','vigia','cida','moletom',
 var BAILE_FIG={jogger:'corredora',fregues:'regata',passeio:'cida',papo1:'moletom',papo2:'toinho',morador1:'carlos',morador2:'vizinha',comu1:'carlos',comu2:'toinho',comu3:'edvaldo',morador3:'pipoqueiro',mc:'toinho',vigia2:'carlos',emb0:'vigia',emb1:'toinho',emb2:'carlos',sb_b18:'vigia',sb_b19:'carlos',sb_b20:'toinho',sb_b21:'toinho',sb_b22:'vigia',sb_b23:'toinho'};
 var RUA_FIG=['vizinha','carlos','toinho','edvaldo','pipoqueiro','cida','vigia','vizinha','carlos','toinho','cida','edvaldo','pipoqueiro','vizinha','vigia','cida','carlos','edvaldo'];
 function figuraBaile(id){if(/^sb_c[0-9]+$/.test(id))return RUA_FIG[+id.slice(4)];return /^dan\d+$/.test(id)?ROUPA_PISTA[Number(id.slice(3))%ROUPA_PISTA.length]:BAILE_FIG[id];}
-function hdDe(n){var elenco=figuraBaile(n.id);if(elenco)return HD[elenco]||(FIG_PECAS[elenco]?.falhou?HD[FIG_PECAS[elenco].roupa]:null);if(n.motoDupla)return HD[n.motoModelo];if(n.id==='vigia')return HD.vigia||null;if(n.id==='chefe')return HD.professor||null;/* professor-meshy: corpo do Meshy no esqueleto do boneco *//* CEO 08/11: corpo civil, rosto aprovado permanece no mesmo Head. */if(n.id==='pm1'||n.heroi||n.hero)return HD.policial;/* 12/11 (gd): vigia2, marlene, toinho, cidap, edvaldo, neide, junior e vizinha SAIRAM: pelo menos 3 deles viravam espetos gigantes no morro (malha estourada). So voltam um a um, com foto do jogo rodando. */var NPCID={juca:'seujoao',bigode:'bigode',carlos:'carlos',pipoqueiro:'pipoqueiro',marlene:'marlene',vigia:'vigia',vizinha:'vizinha',edvaldo:'edvaldo',cidap:'cida',toinho:'toinho',junior:'junior'}[n.id];/* acertos *//* (pj) Dona Marlene: corpo novo por cima dos movimentos de antes */if(NPCID&&HD[NPCID])return HD[NPCID];if((n.kind==='suspeito'||n.kind==='bandido')&&!n.fem)return HD.suspeito;return null;}
-/* boca-malha2: morph do glb segue a malha clonada (so a parte linear da matriz: o morph e deslocamento) e ganha o nome */
-/* boca-malha3: heroi nasce com 2 morphs (bocaAberta + sobrancelha zerada), antes do 1o desenho */
-function bocaSobrancelha(m){var G=m.geometry,mp=G.morphAttributes.position;if(!mp||!mp.length)return;var d=m.morphTargetDictionary||{};Object.keys(d).forEach(function(k){if(mp[d[k]])mp[d[k]].name=k;});if(mp.some(function(a){return a.name==='sobrancelha';}))return;var z=new THREE.Float32BufferAttribute(new Float32Array(G.attributes.position.count*3),3);z.name='sobrancelha';mp.push(z);m.updateMorphTargets();}
+function hdDe(n){var elenco=figuraBaile(n.id);if(elenco)return HD[elenco]||(FIG_PECAS[elenco]?.falhou?HD[FIG_PECAS[elenco].roupa]:null);if(n.motoDupla)return HD[n.motoModelo];if(n.id==='vigia')return HD.vigia||null;if(n.id==='chefe')return HD.professor||null;if(n.id==='pm1'||n.heroi||n.hero)return HD.policial;/* 12/11 (gd): vigia2, toinho, cidap, edvaldo, neide, junior e vizinha SAIRAM: pelo menos 3 deles viravam espetos gigantes no morro (malha estourada). So voltam um a um, com foto do jogo rodando. */var NPCID={marlene:'marlene',juca:'seujoao',bigode:'bigode',carlos:'carlos',pipoqueiro:'pipoqueiro'}[n.id];if(NPCID&&HD[NPCID])return HD[NPCID];if((n.kind==='suspeito'||n.kind==='bandido')&&!n.fem)return HD.suspeito;return null;}
 function bocaGeo(ge,m4,dic){var mp=ge.morphAttributes.position;if(!mp||!mp.length)return;var e=new THREE.Matrix3().setFromMatrix4(m4),v=new THREE.Vector3();
   if(dic)Object.keys(dic).forEach(function(k){if(mp[dic[k]])mp[dic[k]].name=k;});
   mp.forEach(function(a){for(var i=0;i<a.count;i++){v.fromBufferAttribute(a,i).applyMatrix3(e);a.setXYZ(i,v.x,v.y,v.z);}a.needsUpdate=true;});}
-function hdLoad(nome,anterior){var NPCMZ={carlos:'npc-carlos-boca'/* boca-malha4 */,seujoao:'npc-seu-joao-hd',vigia:'npc-vigia-hd',marlene:'marlene-pele'/* (py) CEO 16/11: a gordinha; boca-malha2; padrao-hd */,toinho:'toinho-expressoes',bigode:'npc-bigode-boca',cida:'npc-cida-boca',edvaldo:'edvaldo-expressoes-01d4ad5ef9',pipoqueiro:'npc-pipoqueiro-boca',junior:'junior-sentado',vizinha:'npc-vizinha-boca',professor:'professor-assento'/* professor-meshy; boca-malha2 com ancora manual; padrao-hd */};/* prova-npcs-de-volta */if(anterior===true&&nome==='professor')NPCMZ.professor='npc-professor-hd';if(anterior===true&&nome==='toinho')NPCMZ.toinho='npc-toinho-boca';if(anterior===true&&nome==='marlene')NPCMZ.marlene='dona-marlene-assento';if(FIG_PECAS[nome])NPCMZ[nome]=FIG_PECAS[nome].arquivo;var mz=(nome==='policial'||!!NPCMZ[nome])&&mzOk();if(NPCMZ[nome]&&!mz)return;gltfTry(mz?(NPCMZ[nome]?'models/meshy/'+NPCMZ[nome]+'.glb':anterior===true?'models/meshy/policial-pele.glb':'models/meshy/policial-hd.glb'):'models/gente/'+nome+'.glb',function(g){var m=null;g.scene.updateMatrixWorld(true);g.scene.traverse(function(o){if(o.isMesh&&!m)m=o;});if(!m)return;
-  var ge=m.geometry.clone();ge.applyMatrix4(m.matrixWorld);bocaGeo(ge,m.matrixWorld,m.morphTargetDictionary);if(nome==='policial')bocaSobrancelha(m);var uv=ge.attributes.uv;for(var k=0;!mz&&k<uv.count;k++)uv.array[k*2+1]=1-uv.array[k*2+1]; /* so V: inverter U embaralhava o atlas (farda em manchas, CEO 07/11) *//* Hunyuan grava V invertido (atlas saia em manchas) */
+function bocaSobrancelha(m){var G=m.geometry,mp=G.morphAttributes.position;if(!mp||!mp.length)return;var d=m.morphTargetDictionary||{};Object.keys(d).forEach(function(k){if(mp[d[k]])mp[d[k]].name=k;});if(mp.some(function(a){return a.name==='sobrancelha';}))return;var z=new THREE.Float32BufferAttribute(new Float32Array(G.attributes.position.count*3),3);z.name='sobrancelha';mp.push(z);m.updateMorphTargets();}
+function hdLoad(nome,anterior){var NPCMZ={vizinha:'npc-vizinha-boca',cida:'npc-cida-boca',edvaldo:'edvaldo-expressoes-01d4ad5ef9',toinho:'toinho-expressoes',professor:'professor-assento',marlene:anterior===true?'dona-marlene-assento':'marlene-pele',vigia:'npc-vigia-hd',seujoao:'npc-seu-joao-hd',bigode:'npc-bigode-boca',carlos:'npc-carlos-boca',pipoqueiro:'npc-pipoqueiro-boca'};if(FIG_PECAS[nome])NPCMZ[nome]=FIG_PECAS[nome].arquivo;var mz=(nome==='policial'||!!NPCMZ[nome])&&mzOk();if(NPCMZ[nome]&&!mz)return;gltfTry(mz?(NPCMZ[nome]?'models/meshy/'+NPCMZ[nome]+'.glb':anterior===true?'models/meshy/heroi-pm.glb':'models/meshy/policial-hd.glb'):'models/gente/'+nome+'.glb',function(g){var m=null;g.scene.updateMatrixWorld(true);g.scene.traverse(function(o){if(o.isMesh&&!m)m=o;});if(!m)return;
+  var ge=m.geometry.clone();ge.applyMatrix4(m.matrixWorld);if(NPCMZ[nome])bocaGeo(ge,m.matrixWorld,m.morphTargetDictionary);if(nome==='policial')bocaSobrancelha(m);var uv=ge.attributes.uv;for(var k=0;!mz&&k<uv.count;k++)uv.array[k*2+1]=1-uv.array[k*2+1]; /* so V: inverter U embaralhava o atlas (farda em manchas, CEO 07/11) *//* Hunyuan grava V invertido (atlas saia em manchas) */
   HD[nome]={nome:nome,geo:ge,mat:m.material,mz:mz,gl:mz?g:null};if(nome==='policial'&&typeof FIST_TEX!=='undefined'&&FIST_TEX)fistUniform();if(nome==='policial'&&typeof PM_MAOS!=='undefined'&&PM_MAOS)pmMaosMaterial();if(nome==='professor')PROF=HD.professor;
   GLS.slice().forEach(function(n){if(hdDe(n)===HD[nome])profSkin(n,true);});
-},function(e){if(FIG_PECAS[nome]){FIG_PECAS[nome].falhou=true;ERRS.push('figurante indisponível: '+nome);GLS.slice().forEach(function(n){if(figuraBaile(n.id)===nome&&hdDe(n))profSkin(n,true);});return;}if(mz&&anterior!==true&&(nome==='marlene'||nome==='policial'||nome==='toinho'||nome==='professor')){hdLoad(nome,true);return;}ERRS.push(nome+' '+(e&&e.message||e));mzErro();});}
-['professor','policial','suspeito','seujoao','bigode','carlos','pipoqueiro','marlene','vigia','vizinha','edvaldo','cida','toinho','junior'].forEach(hdLoad);/* acertos *//* (pj) */
+},function(e){if(FIG_PECAS[nome]){FIG_PECAS[nome].falhou=true;ERRS.push('figurante indisponível: '+nome);GLS.slice().forEach(function(n){if(figuraBaile(n.id)===nome&&hdDe(n))profSkin(n,true);});return;}if(nome==='professor'){ERRS.push(nome+' '+(e&&e.message||e));return;}if(mz&&(nome==='marlene'||nome==='policial')&&anterior!==true){hdLoad(nome,true);return;}ERRS.push(nome+' '+(e&&e.message||e));mzErro();});}
+['professor','policial','suspeito','seujoao','bigode','carlos','pipoqueiro','vigia','marlene','vizinha','cida','edvaldo','toinho'].forEach(hdLoad);
 Object.keys(FIG_PECAS).forEach(hdLoad);
 
-/* marlene-altura: corpo HD na altura do boneco do mesmo sexo (lida do gLoad do man.glb e do woman.glb) */
-var HD_ALT_HOMEM=1.78,HD_ALT_MULHER=1.66;
 /* Pesos da malha: após ordenar pela altura, um ponto só pode entrar se a distância vertical couber no oitavo vizinho. Empates mantêm o índice original. */
 function skinVizinhos8(p){
   var ids=Int32Array.from({length:p.length/3},function(_,i){return i;});ids.sort(function(a,b){return p[a*3+1]-p[b*3+1];});
@@ -9291,12 +9080,12 @@ function profSkin(n,tardio){
       for(var j=0;j<4;j++){I.push(bones.indexOf(sm.skeleton.bones[si.array[i*4+j]]));W.push(sw.array[i*4+j]);}}});return {P:P,I:I,W:W};}
   /* malha do Professor no espaco do NPC: altura 1,78, pe no chao, centrada, virada para o mesmo lado do homem */
   var ge=D.geo.clone(),formas=ge.morphAttributes.position;
-  if(formas&&(n.id==='marlene'||n.id==='junior'))ge.morphAttributes.position=formas.filter(function(a){return a.name!=='saiaSentada'&&a.name!=='calcaSentada';});
+  if(formas&&n.id==='marlene')ge.morphAttributes.position=formas.filter(function(a){return a.name!=='saiaSentada';});
   ge.computeBoundingBox();if(formas)ge.morphAttributes.position=formas;
-  var bb=ge.boundingBox,k=(n.fem?HD_ALT_MULHER:HD_ALT_HOMEM)/(bb.max.y-bb.min.y);/* marlene-altura */
+  var bb=ge.boundingBox,k=(n.id==='marlene'?1.66:1.78)/(bb.max.y-bb.min.y);
   ge.translate(-(bb.min.x+bb.max.x)/2,-bb.min.y,-(bb.min.z+bb.max.z)/2);ge.scale(k,k,k);
   /* boneco do homem tem rotation.y=PI (olha para -z no espaco do NPC); Hunyuan olha +z: gira 180 senao cabeca do boneco sai de costas para o corpo HD */
-  ge.rotateY(Math.PI);bocaGeo(ge,new THREE.Matrix4().makeRotationY(Math.PI).multiply(new THREE.Matrix4().makeScale(k,k,k)));/* boca-malha2 */
+  ge.rotateY(Math.PI);if(D.mz&&D.nome!=='policial')bocaGeo(ge,new THREE.Matrix4().makeRotationY(Math.PI).multiply(new THREE.Matrix4().makeScale(k,k,k)));
   /* mira cada braco: ombro->mao do esqueleto passa a apontar para a ponta da mao da malha do mesmo lado */
   var PP=ge.attributes.position.array,hand={};
   for(var i=0;i<PP.length;i+=3)if(PP[i+1]>.6){var sd=PP[i]>0?'p':'n';if(!hand[sd]||Math.abs(PP[i])>Math.abs(hand[sd].x))hand[sd]=new THREE.Vector3(PP[i],PP[i+1],PP[i+2]);}
@@ -9338,7 +9127,7 @@ function profSkin(n,tardio){
     for(var j=0;j<p.count;j++){var y=p.getY(j),x=Math.abs(p.getX(j)),w=.84*sm(clamp((y-.83)/.12,0,1))*sm(clamp((1.44-y)/.11,0,1))*sm(clamp((.28-x)/.075,0,1));coresV[j*3]=1+w*(tinta.r-1);coresV[j*3+1]=1+w*(tinta.g-1);coresV[j*3+2]=1+w*(tinta.b-1);}
     ge.setAttribute('color',new THREE.BufferAttribute(coresV,3));mt.vertexColors=true;
     if(u.fc&&u.fc.group)u.fc.group.visible=false;
-  }mt.skinning=true;mt.morphTargets=!!(ge.morphAttributes.position&&ge.morphAttributes.position.length);/* boca-malha2 */mt.metalness=0;mt.roughness=Math.max(mt.roughness||0,.8);mt.metalnessMap=null;
+  }mt.skinning=true;mt.morphTargets=!!ge.morphAttributes.position?.length;mt.metalness=0;mt.roughness=Math.max(mt.roughness||0,.8);mt.metalnessMap=null;
   goldenRim(mt);
   if(n.motoDupla&&D.mz&&(D.nome==='carlos'||D.nome==='bigode'))motoCamisa(ge,bones,D.nome);
   var pm=new THREE.SkinnedMesh(ge,mt);pm.castShadow=pm.receiveShadow=true;pm.frustumCulled=false;pm.name=D.nome+'HD';
@@ -9638,8 +9427,8 @@ var RF_BOCA={h:.094,c:80/256},RF_LABIO=[0,.0036,.0078,.012],RF_NOMES={Passante:'
   corredora:['Head',1.643,.035,1.579,.029,.016,.008,1.66],
   heroi:['mixamorigHead',1.644,.034,1.574,.026,.018,.009,1.70],
   policial:['Head',1.644,.034,1.574,.026,.018,.009],
-  seujoao:['Head',1.637,.038,1.560,.025,.020,.010],
   marlene:['Head',1.636,.037/* estimado: conferir em foto */,1.559,.024/* estimado: conferir em foto */,.020/* estimado: conferir em foto */,.010/* estimado: conferir em foto */],/* marlene-rosto: medido no npc-marlene.glb */
+  seujoao:['Head',1.637,.038,1.560,.025,.020,.010],
   bigode:['Head',1.615,.038,1.530,.024,.020,.010],
   carlos:['Head',1.652,.038,1.569,.026,.020,.010],
   pipoqueiro:['Head',1.636,.039,1.562,.027,.021,.011],
@@ -9668,14 +9457,14 @@ function rigPalpebra(sm,cfg,o,k,flip,sd,pele,leitura){var a=[rigPele(sm,cfg,o,k,
   a.sort(function(p,q){return p.r+p.g+p.b-q.r-q.g-q.b;});return a[2];}/* o mais claro: escuro na textura e bone, sobrancelha ou cabelo, nunca pele */
 function rigMaterial(sm,cfg,r,flip){
   if(sm.rfMaterial===sm.material&&sm.rfUniformes){r.sm=sm;r.u=sm.rfUniformes;return;}
-  var g=sm.geometry,b=new THREE.Box3().setFromBufferAttribute(g.attributes.position)/* bigode-policial: caixa so dos vertices; a do r128 soma o morph bocaAberta e descia o rosto pintado 18,6 mm */,k=1.78/(cfg[7]||b.max.y-b.min.y),source=sm.material,mt=source.clone();sm.material=mt;
+  var g=sm.geometry;g.computeBoundingBox();var b=r.model==='marlene'?new THREE.Box3().setFromBufferAttribute(g.attributes.position):g.boundingBox,k=1.78/(cfg[7]||b.max.y-b.min.y),source=sm.material,mt=source.clone();sm.material=mt;
   var u=r.u={face:{value:new THREE.Vector4()},origin:{value:new THREE.Vector3((b.min.x+b.max.x)/2,b.min.y,(b.min.z+b.max.z)/2)},
     size:{value:new THREE.Vector4(k,flip,cfg[1],cfg[2])},mouth:{value:new THREE.Vector4(cfg[3],cfg[4],cfg[5],cfg[6])},brow:{value:0},lip:{value:0}};
   var leitura=rigLeituraPele(sm.material.map.image);u.atlas={value:rigAtlas()};u.tilt={value:new THREE.Vector3(Math.cos(cfg[8]||0),Math.sin(cfg[8]||0),cfg[9]||0)};u.hero={value:r.model==='heroi'?1:0};u.skinL={value:rigPele(sm,cfg,u.origin.value,k,flip,-1,null,null,leitura)};u.skinR={value:rigPele(sm,cfg,u.origin.value,k,flip,1,null,null,leitura)};u.lidL={value:rigPalpebra(sm,cfg,u.origin.value,k,flip,-1,u.skinL.value,leitura)};u.lidR={value:rigPalpebra(sm,cfg,u.origin.value,k,flip,1,u.skinR.value,leitura)};
   var old=source.onBeforeCompile,cache=source.customProgramCacheKey();mt.extensions=Object.assign({},mt.extensions,{derivatives:true});
   mt.onBeforeCompile=function(sh){if(old)old.call(mt,sh);sh.uniforms.rfAtlas=u.atlas;sh.uniforms.rfTilt=u.tilt;sh.uniforms.rfHero=u.hero;sh.uniforms.rfFace=u.face;sh.uniforms.rfOrigin=u.origin;sh.uniforms.rfSize=u.size;sh.uniforms.rfMouth=u.mouth;sh.uniforms.rfSkinL=u.skinL;sh.uniforms.rfSkinR=u.skinR;sh.uniforms.rfLidL=u.lidL;sh.uniforms.rfLidR=u.lidR;sh.uniforms.rfBrow=u.brow;sh.uniforms.rfLip=u.lip;
-    sh.vertexShader='uniform vec3 rfTilt;varying vec3 rfP;uniform vec3 rfOrigin;uniform vec4 rfSize;uniform float rfHero;uniform vec4 rfFace;uniform float rfBrow;\n'+sh.vertexShader;
-    sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nrfP=(position-rfOrigin)*rfSize.x;rfP.xz*=rfSize.y;rfP.xy=vec2(rfTilt.x*(rfP.x-rfTilt.z)+rfTilt.y*(rfP.y-rfSize.z),rfSize.z-rfTilt.y*(rfP.x-rfTilt.z)+rfTilt.x*(rfP.y-rfSize.z));if(rfHero<.5){float rfFr=smoothstep(0.015,0.045,rfP.z);vec2 rfE=vec2(abs(rfP.x)-rfSize.w,rfP.y-rfSize.z);float rfEm=rfFace.w,rfSl=clamp(rfE.x/.025,-1.,1.);float rfBL=rfEm==1.?-.004+.006*rfSl:rfEm==2.?.006:rfEm==3.?.003-.006*rfSl:rfEm==4.?.003:0.;float rfBr=exp(-pow(rfE.x/.028,4.)-pow((rfE.y-.023)/.018,4.))*rfFr;float rfBW=rfFr*exp(-pow(rfE.x/.032,4.))*(rfBrow>0.?clamp((rfE.y-.004)/.022,0.,1.):smoothstep(.006,.020,rfE.y))*(1.-smoothstep(.030,.060,rfE.y));transformed.y+=(clamp(rfBL,-.004,.004)*rfBr*smoothstep(.012,.021,rfE.y)+rfBrow*rfBW)/rfSize.x;}');
+    sh.vertexShader='uniform vec3 rfTilt;varying vec3 rfP;uniform vec3 rfOrigin;uniform vec4 rfSize;\n'+sh.vertexShader;
+    sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nrfP=(position-rfOrigin)*rfSize.x;rfP.xz*=rfSize.y;rfP.xy=vec2(rfTilt.x*(rfP.x-rfTilt.z)+rfTilt.y*(rfP.y-rfSize.z),rfSize.z-rfTilt.y*(rfP.x-rfTilt.z)+rfTilt.x*(rfP.y-rfSize.z));');
     sh.fragmentShader='uniform sampler2D rfAtlas;uniform float rfHero;uniform vec3 rfSkinL;uniform vec3 rfSkinR;uniform vec3 rfLidL;uniform vec3 rfLidR;varying vec3 rfP;uniform vec4 rfFace;uniform vec4 rfSize;uniform vec4 rfMouth;uniform float rfBrow;uniform float rfLip;\n'+sh.fragmentShader;
     sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',`#ifdef USE_MAP
       vec2 ax=dFdx(rfP.xy),ay=dFdy(rfP.xy),ux=dFdx(vUv),uy=dFdy(vUv);
@@ -9688,7 +9477,7 @@ function rigMaterial(sm,cfg,r,flip){
       float brow=exp(-pow(eye.x/.028,4.)-pow((eye.y-.023)/.018,4.))*front;
       float emotion=rfFace.w;
       float slope=clamp(eye.x/.025,-1.,1.);float browLift=emotion==1.?-.004+.006*slope:emotion==2.?.006:emotion==3.?.003-.006*slope:emotion==4.?.003:0.;
-      vec2 warp=uvX*(-sin(rfFace.z)*rfMouth.z*eyeMask)+uvY*(-clamp(browLift,-.004,.004)*brow*smoothstep(.012,.021,eye.y)*rfHero);/* sobrancelha: NPC HD nao puxa (ilha do atlas rasga) *//* rosto-vivo: sobrancelha da fala, rampa linear do meio do olho (sobe) ou da palpebra (desce) e solta na testa */float rfBW=front*exp(-pow(eye.x/.032,4.))*(rfBrow>0.?clamp((eye.y-.004)/.022,0.,1.):smoothstep(.006,.020,eye.y))*(1.-smoothstep(.040,.085,eye.y));float rfMy=rfP.y-rfMouth.x,rfLW=front*(1.-smoothstep(rfMouth.y*1.2,rfMouth.y*1.9,abs(rfP.x)))*clamp((rfMy+.030)/.024,0.,1.)*(1.-smoothstep(.012,.042,rfMy));warp+=uvY*(-rfBrow*rfBW*rfHero-rfLip*rfLW);
+      vec2 warp=uvX*(-sin(rfFace.z)*rfMouth.z*eyeMask)+uvY*(-clamp(browLift,-.004,.004)*brow*smoothstep(.012,.021,eye.y));/* rosto-vivo: sobrancelha da fala, rampa linear do meio do olho (sobe) ou da palpebra (desce) e solta na testa */float rfBW=front*exp(-pow(eye.x/.032,4.))*(rfBrow>0.?clamp((eye.y-.004)/.022,0.,1.):smoothstep(.006,.020,eye.y))*(1.-smoothstep(.040,.085,eye.y));float rfMy=rfP.y-rfMouth.x,rfLW=front*(1.-smoothstep(rfMouth.y*1.2,rfMouth.y*1.9,abs(rfP.x)))*clamp((rfMy+.030)/.024,0.,1.)*(1.-smoothstep(.012,.042,rfMy));warp+=uvY*(-rfBrow*rfBW-rfLip*rfLW);
       vec4 sampledDiffuseColor=mapTexelToLinear(texture2D(map,vUv+warp));
       if(rfFace.w!=0.&&rfFace.x<.5){
         float lidY=rfFace.w==1.?.003:rfFace.w==3.?.004:rfFace.w==4.?.005:.020;
@@ -9731,10 +9520,10 @@ function rigLiga(n,hero){
   if(!cfg||(!f&&!sm))return null;
   if(!r)r=u.rigFacial=rigEstado(n.id||n.name||'rosto');r.model=key;r.f=f;r.source=sm;r.sm=cfg.length>1?sm:null;n.rfPhase=rigSeed(String(n.id||''))%7;if(f)for(var j=0;j<f.parts.length;j++)f.parts[j].userData.rfX=f.parts[j].position.x;r.head=hero?(n.m.getObjectByName(cfg[0])||n.m.getObjectByName('mixamorig:Head')):f&&f.head;
   if(cfg.length===1&&f&&f.mo&&(!r.mouthMap||f.mo.material.map!==r.mouthMap)){if(r.mouthMap)r.mouthMap.dispose();rigBocaPeca(r);}
-  if(sm&&cfg.length>1){rigMaterial(sm,cfg,r,hero?1:-1);rigBocaMalha(r,sm);}/* boca-malha2: boca de verdade no corpo HD */
+  r.bm=null;if(sm&&cfg.length>1){rigMaterial(sm,cfg,r,hero?1:-1);rigBocaMalha(r,sm);}
   if(sm&&cfg.length>1&&f&&f.group){
-    /* O rig substitui olhos e boca; o aviador fica guardado e escondido (CEO 16/11: policial sem oculos escuro). */
-    for(var j=f.group.children.length-1;j>=0;j--){var p=f.group.children[j];if(p.userData.rayban)p.visible=false;else f.group.remove(p);}
+    /* O rig substitui olhos e boca, nunca o aviador aprovado (en). */
+    for(var j=f.group.children.length-1;j>=0;j--){var p=f.group.children[j];if(p.userData.rayban)p.visible=!hero&&!(typeof P1!=='undefined'&&P1.userData&&f===P1.userData.fc);else f.group.remove(p);}/* CEO 16/11: heroi sem oculos escuro; o rig religava quando o modelo HD chegava cedo */
     f.group.visible=f.group.children.length>0;
   }if(cfg.length===1&&f&&!f.oc&&f.v>=0&&(n.kind==='suspeito'||n.kind==='bandido'))f.oc=oculosMol(f);/* rosto pintado substitui as pecas antigas, nunca quatro olhos */
   return r;
@@ -9753,12 +9542,6 @@ function rigAmplitude(n){
   var t=S.time-n.talkStart,w=t*(n.rfRate||15)+(n.rfPhase||0);return Math.max(0,Math.sin(w))*(.62+.38*Math.sin(w*.43+1.3));
 }
 /* Zero alocacao por quadro. Intervalos inicio-a-inicio 2..6 s e duracao .12..16 s. */
-/* BOCA-MALHA (CEO 16/11): boca recortada no modelo, morph bocaAberta manda na abertura */
-var BOCA_DESENHO=false;/* boca-malha3 (CEO 16/11 21h27 'pode descartar completamente'): false = nenhuma boca desenhada por cima */
-function rigBocaMalha(r,root){if(!r||!root)return;var bm=[];root.traverse(function(o){var d=o.morphTargetDictionary;if(d&&d.bocaAberta!==undefined&&o.morphTargetInfluences)bm.push([o,d.bocaAberta]);});
-  if(!bm.length)return;r.bm=bm;r.bo=0;/* boca-malha2: desenho desligado pelo rfFace.y=-1 no rigTick (bigode pintado fica) *//* sem boca desenhada nem puxao de labio por cima da boca de verdade */}
-var BOCA_MC_MAX=.4;/* pico de 0,6 cm em vez de 1,51 cm */
-function rigBocaMorph(r,dt){var t=Math.min(1,r.amp*1.1)*(r.model==='heroi'?BOCA_MC_MAX:1);r.bo+=(t-r.bo)*(1-Math.exp(-dt*12));for(var i=0;i<r.bm.length;i++)r.bm[i][0].morphTargetInfluences[r.bm[i][1]]=r.bo;}
 function rigTick(n,r,dt){
   if(!r)return;r.next-=dt;
   if(r.closed){r.dur-=dt;if(r.dur<=0)r.closed=false;}
@@ -9774,15 +9557,18 @@ function rigTick(n,r,dt){
   var al=0;if(target){var dx=target.x-n.x,dz=target.z-n.z;if(dx*dx+dz*dz>.01)al=dAng(n.yaw||0,yawTo(dx,dz));}
   var head=clamp(al*.70,-Math.PI*35/180,Math.PI*35/180),eyes=clamp(al-head,-Math.PI/9,Math.PI/9),blend=1-Math.exp(-dt*7);
   r.turn+=(head-r.turn)*blend;r.eye+=(eyes-r.eye)*blend;
-  if(r.head){r.head.rotation.y+=r.turn;if(r.f){r.f.lastTurn=r.turn;r.f.turn=r.turn;}/* rosto-vivo: cabeca viva. Osso que o mixer nao reescreveu ainda tem o que somei: tiro antes de somar de novo */var hr=r.head.rotation;if(r.hxS===hr.x)hr.x-=r.hx||0;if(r.hzS===hr.z)hr.z-=r.hz||0;/* marlene-cabeca: cada eixo sozinho, senao Z soma sem fim */var hT=S.time+(n.rfPhase||0)*1.7,hx=0,hz=0;if(tk){hx=.04*(.35+.65*r.ampS)*Math.sin(hT*3.1)+.018*Math.sin(hT*1.15);hz=.04*Math.sin(hT*.7+(r.bPh||0))+.012*Math.sin(hT*1.6);}else if(target){hx=.016*Math.sin(hT*.9);hz=.024*Math.sin(hT*.55+1);}r.hx=(r.hx||0)+(hx-(r.hx||0))*(1-Math.exp(-dt*5));r.hz=(r.hz||0)+(hz-(r.hz||0))*(1-Math.exp(-dt*4));hr.x+=r.hx;hr.z+=r.hz;r.hxS=hr.x;r.hzS=hr.z;}
-  if(r.u){var bl=a;if(n===RF_HEROI&&ROSTO.on){r.sm.material.map=r.closed?ROSTO.ct:ROSTO.mp;ROSTO.fechado=r.closed;bl=0;}r.u.face.value.set(bl,r.bm||!BOCA_DESENHO?-1:r.mouth,r.eye,r.emo);if(r.u.brow)r.u.brow.value=r.bw;if(r.u.lip)r.u.lip.value=r.bm||!BOCA_DESENHO?0:r.lp;}
-  else if(r.f){var f=r.f;/* portao-2211-rosto2: rosto antigo (Kaua, CC0) nao tem boca na malha; esconder a desenhada deixava sem boca */if(f.oc)f.oc.visible=n.kind==='suspeito'||n.kind==='bandido';var sy=(r.emo===1?.78:r.emo===2?1.25:r.emo===3?.86:r.emo===4?.9:1)*(1-.92*a);
+  if(r.head){r.head.rotation.y+=r.turn;if(r.f){r.f.lastTurn=r.turn;r.f.turn=r.turn;}/* rosto-vivo: cabeca viva. Osso que o mixer nao reescreveu ainda tem o que somei: tiro antes de somar de novo */var hr=r.head.rotation;if(r.hxS===hr.x&&r.hzS===hr.z){hr.x-=r.hx||0;hr.z-=r.hz||0;}var hT=S.time+(n.rfPhase||0)*1.7,hx=0,hz=0;if(tk){hx=.04*(.35+.65*r.ampS)*Math.sin(hT*3.1)+.018*Math.sin(hT*1.15);hz=.04*Math.sin(hT*.7+(r.bPh||0))+.012*Math.sin(hT*1.6);}else if(target){hx=.016*Math.sin(hT*.9);hz=.024*Math.sin(hT*.55+1);}r.hx=(r.hx||0)+(hx-(r.hx||0))*(1-Math.exp(-dt*5));r.hz=(r.hz||0)+(hz-(r.hz||0))*(1-Math.exp(-dt*4));hr.x+=r.hx;hr.z+=r.hz;r.hxS=hr.x;r.hzS=hr.z;}
+  if(r.u){var bl=a;if(n===RF_HEROI&&ROSTO.on){r.sm.material.map=r.closed?ROSTO.ct:ROSTO.mp;ROSTO.fechado=r.closed;bl=0;}r.u.face.value.set(bl,r.bm?-1:r.mouth,r.eye,r.emo);if(r.u.brow)r.u.brow.value=r.bw;if(r.u.lip)r.u.lip.value=r.bm?0:r.lp;}
+  else if(r.f){var f=r.f;if(f.oc)f.oc.visible=n.kind==='suspeito'||n.kind==='bandido';var sy=(r.emo===1?.78:r.emo===2?1.25:r.emo===3?.86:r.emo===4?.9:1)*(1-.92*a);
     for(var i=0;i<f.parts.length;i++){var p=f.parts[i];p.scale.y=p.userData.sy*sy;if(i%3!==0){p.position.x=p.userData.rfX+Math.sin(r.eye)*.021;}}
     if(f.lid)for(i=0;i<f.lid.length;i++){var L=f.lid[i];L.visible=a>.02&&f.parts[0].visible;L.scale.y=Math.max(a,.02);L.position.y=L.userData.y-L.userData.h*a;}
     /* Boca muda somente o tile do atlas, nunca estica um cubo preto. */
     for(i=0;i<f.br.length;i++){var b=f.br[i],sd=i?1:-1;b.position.y=b.userData.y+(r.emo===2?.014:r.emo===3?.004:r.emo===4?.005:0)+(r.bw||0);b.rotation.z=f.fit.angle+sd*(r.emo===1?.45:r.emo===3?-.3:r.emo===4?-.12:.1);}
   }
 }
+function rigBocaMalha(r,root){if(!r||!root)return;var bm=[];root.traverse(function(o){var d=o.morphTargetDictionary;if(d&&d.bocaAberta!==undefined&&o.morphTargetInfluences)bm.push([o,d.bocaAberta]);});
+  if(!bm.length)return;r.bm=bm;r.bo=0;/* boca-malha2: desenho desligado pelo rfFace.y=-1 no rigTick (bigode pintado fica) *//* sem boca desenhada nem puxao de labio por cima da boca de verdade */}
+function rigBocaMorph(r,dt){var t=Math.min(1,r.amp*1.1);r.bo+=(t-r.bo)*(1-Math.exp(-dt*12));for(var i=0;i<r.bm.length;i++)r.bm[i][0].morphTargetInfluences[r.bm[i][1]]=r.bo;}
 function rostoSorriso(n,dt){var sm=n.m.userData.profMesh,dic=sm&&sm.morphTargetDictionary,idx=dic&&dic.sorriso;
   if(idx!=null){var pesos=sm.morphTargetInfluences;
     if(S.soco&&S.soco.n===n)pesos[idx]=0;
@@ -9862,7 +9648,7 @@ function heroiRostoIni(T){
     for(i=0;i<n;i++){dd=Math.hypot(uv.getX(i)*W-bx,uv.getY(i)*H-by)/(30*px);if(dd>=1)continue;
       if(Math.hypot(ps.getX(i)-ax,ps.getY(i)-ay,ps.getZ(i)-az)>.05*u)continue;
       v=Math.min(1,(1-dd)/.65);dl[i*3+1]=Math.max(dl[i*3+1],R.mm/1000*u*v*v*(3-2*v));/* platô perto da sobrancelha, cai suave */}});
-  /* boca-malha3: o r128 guarda quantos morphs a malha tem no 1o desenho (mudar a contagem depois quebra a carga: 'Nao consegui preparar a viatura'). O heroi ja nasce com boca + sobrancelha zerada (bocaSobrancelha no hdLoad): aqui so preenche */var mp0=G.morphAttributes.position||[],bmI=-1;for(var bq=0;bq<mp0.length;bq++)if(mp0[bq].name==='sobrancelha')bmI=bq;if(bmI>=0){mp0[bmI].array.set(dl);mp0[bmI].needsUpdate=true;R.bi=bmI;}else if(!mp0.length){G.morphAttributes.position=[new THREE.BufferAttribute(dl,3)];G.morphTargetsRelative=true;sm.updateMorphTargets();R.bi=0;}else{R.bi=-1;}if(R.bi>=0)sm.morphTargetInfluences[R.bi]=0;var bmRh=T.m.userData.rigFacial;if(bmRh&&bmRh.bm)rigBocaMalha(bmRh,sm);
+  var mp0=G.morphAttributes.position||[],bmI=-1;for(var bq=0;bq<mp0.length;bq++)if(mp0[bq].name==='sobrancelha')bmI=bq;if(bmI>=0){mp0[bmI].array.set(dl);mp0[bmI].needsUpdate=true;R.bi=bmI;}else if(!mp0.length){G.morphAttributes.position=[new THREE.BufferAttribute(dl,3)];G.morphTargetsRelative=true;sm.updateMorphTargets();R.bi=0;}else{R.bi=-1;}if(R.bi>=0)sm.morphTargetInfluences[R.bi]=0;var bmRh=T.m.userData.rigFacial;if(bmRh&&bmRh.bm)rigBocaMalha(bmRh,sm);
   R.sm=sm;R.mp=mp;R.ct=ct;
   try{renderer.initTexture(ct);var pv=T.m.visible,pr=renderer.getRenderTarget(),pw=new THREE.WebGLRenderTarget(8,8);/* compila o shader e sobe a textura agora, na carga */
     T.m.visible=true;renderer.setRenderTarget(pw);renderer.render(scene,camera);renderer.setRenderTarget(pr);pw.dispose();T.m.visible=pv;}catch(e){}
@@ -9984,7 +9770,7 @@ function faceSay(quem,d,emo,voz,texto){
   if(!best)for(var i=0;i<NPCS.length;i++)if(NPCS[i].name===quem&&NPCS[i].m.visible){best=NPCS[i];break;}
   if(!best||!best.m||(!best.m.visible&&best!==RF_HEROI))return;
   if(S.falante)S.falante.talk=0;best.vozDeCena=null;S.falante=best;if(best!==RF_HEROI)RF_HEROI.listenTo=best;best.talkStart=S.time;best.talkDur=d;best.talk=S.time+d;best.emo=emo||'neutro';best.voz=voz||null;best.rfQ=/[?!]/.test(texto||'');best.gQ=/\?/.test(texto||'');/* gesto-fala: pergunta */best.rfRate=texto?clamp(texto.length/Math.max(.1,d)*.7,7,18):15;
-  NPCS.forEach(function(n){if(n!==best&&n.m.visible&&(n.mode==='idle'||n.mode==='talk')&&dist2(n.x,n.z,best.x,best.z)<=8){n.listenTo=best;n.listenUntil=best.talk;}});best.falaSeq=(best.falaSeq||0)+1;return best;
+  NPCS.forEach(function(n){if(n!==best&&n.m.visible&&(n.mode==='idle'||n.mode==='talk')&&dist2(n.x,n.z,best.x,best.z)<=8){n.listenTo=best;n.listenUntil=best.talk;}});return best;
 }
 function faceEmo(txt){for(var i=0;i<EMO.length;i++)if(EMO[i][0].test(txt))return EMO[i][1];return '';}
 function glPlay(u,name,ts){
@@ -10185,7 +9971,7 @@ function bandidoRecebe(g){
 }
 /* BANDIDO-LUTA: corpo completo, esqueleto e seis clipes originais. */
 var BANDIDO={g:null,erro:false,n:null};
-function bandidoLoad(){new THREE.GLTFLoader(new THREE.LoadingManager()).load('models/meshy/bandido-luta-boca.glb'/* boca-malha4 */,bandidoRecebe,undefined,function(){BANDIDO.erro=true;});}
+function bandidoLoad(){new THREE.GLTFLoader(new THREE.LoadingManager()).load('models/meshy/bandido-luta.glb',bandidoRecebe,undefined,function(){BANDIDO.erro=true;});}
 function bandidoLiga(n){
   var g=BANDIDO.g;if(!g||!THREE.SkeletonUtils||n.m.userData.bandido)return;
   var s=THREE.SkeletonUtils.clone(g.scene),sm=null;
@@ -10199,7 +9985,7 @@ function bandidoLiga(n){
   g.animations.forEach(function(source){var c=source.clone();c.tracks.forEach(function(t){if(/Hips\.position$/.test(t.name))for(var i=0;i<t.values.length;i+=3){t.values[i]=0;t.values[i+2]=0;}});var a=v.mx.clipAction(c);if(c.name==='Knock_Down'||c.name==='Face_Punch_Reaction'||c.name==='Punch_Combo_1'){a.setLoop(THREE.LoopOnce);a.clampWhenFinished=true;}v.a[c.name]=a;});
   /* Mesma shader do rig-facial; sem mudar vertices, pesos ou osso do rosto. */
   var r=rigEstado('fujao');r.model='bandido';r.source=r.sm=sm;r.head=s.getObjectByName('mixamorigHead');v.rf=r;
-  rigMaterial(sm,['mixamorigHead',1.626,.030,1.574,.024,.017,.009],r,1);rigBocaMalha(r,s);/* boca-malha4: Fujao abre a propria boca */
+  rigMaterial(sm,['mixamorigHead',1.626,.030,1.574,.024,.017,.009],r,1);
   for(var i=0;i<n.m.children.length;i++)n.m.children[i].visible=false;
   n.m.add(s);n.m.userData.bandido=v;BANDIDO.n=n;bandidoPlay(n,'Idle_10',0);
 }
@@ -10305,7 +10091,7 @@ function bandidoTick(dt){
   else if(!v.left){var name=S.fcCena&&S.fcCena.n===n?'Idle_10':n.fuga?(n.m.userData.gl&&n.m.userData.gl.cur==='Idle'?'Idle_10':'Running'):fight||S.step==='topo34'?'Idle_10':n.mode==='walk'?'Walking':'Idle_10';if(v.cur!==name)bandidoPlay(n,name,0);}
   if(v.rf.head)v.rf.head.rotation.y-=v.rf.last;
   v.mx.update(dt);rigTick(n,v.rf,dt);v.rf.last=v.rf.turn;
-  v.s.rotation.y=(S.fcCena&&S.fcCena.n===n||n.fcCenaBody)?0:Math.PI;/* mesh olha +Z; atores do jogo olham -Z: meia volta (CEO 16/11: corria de costas). Cena da prisao fica como foi montada. */
+  v.s.rotation.y=0;/* mesh olha +Z; atores do jogo olham -Z */
   // A queda do Fusca termina apoiada na rua. A luta no teto usa o clipe original.
   var noAsfalto=n.down&&!fight&&(n.fcCenaBody||S.fcCena&&S.fcCena.n===n);
   var apoio=noAsfalto?sm(clamp((v.a.Knock_Down.time-1.65)/.7,0,1)):0;
@@ -10316,46 +10102,6 @@ function bandidoTick(dt){
 }
 bandidoLoad();
 /* FIM BANDIDO-LUTA */
-/* NPC-MESHY-INI (CEO 16/11 (oz)): modelos novos do Meshy nos personagens nomeados */
-var NPCMESHY={arq:{juca:'models/meshy/seu-joao-boca-lisa.glb'/* acertos: normal lisa */,/* CEO (pj): Dona Marlene volta ao modelo anterior, o animado do Meshy ficou artificial */},alt:{marlene:1.5,juca:1.7},rosto:{juca:['mixamorigHead',1.642,.038,1.567,.026,.020,.010]},g:{}};
-function npcMeshyLoad(){/* boca-malha: clipes de parado/fala da Marlene (mesmo esqueleto mixamo) */new THREE.GLTFLoader(new THREE.LoadingManager()).load('models/meshy/dona-marlene.glb',function(g){NPCMESHY.clip=g.animations;},undefined,function(){NPCMESHY.clip=[];});Object.keys(NPCMESHY.arq).forEach(function(id){new THREE.GLTFLoader(new THREE.LoadingManager()).load(NPCMESHY.arq[id],function(g){NPCMESHY.g[id]=g;},undefined,function(){NPCMESHY.g[id]=null;});});}
-function npcMeshyLiga(n){
-  var g=NPCMESHY.g[n.id];if(!g||!THREE.SkeletonUtils||n.m.userData.meshy)return;
-  /* boca-malha: Seu Joao veio do Meshy so com andar/correr; parado e fala vem da Marlene (mesmo esqueleto) */var anis=g.animations.slice();if(n.id==='juca'){if(!NPCMESHY.clip)return;NPCMESHY.clip.forEach(function(c){if(!anis.some(function(x){return x.name===c.name;}))anis.push(c);});}
-  var s=THREE.SkeletonUtils.clone(g.scene),sm=null;
-  s.traverse(function(o){if(o.isSkinnedMesh){if(!sm||o.material.map)sm=o;/* boca-malha: a cavidade (sem textura) nunca vira a malha do rosto */o.frustumCulled=false;o.castShadow=BAT===0;o.receiveShadow=BAT===0;}});
-  if(!sm)return;
-  sm.geometry.computeBoundingBox();var b=sm.geometry.boundingBox,k=(NPCMESHY.alt[n.id]||1.6)/(b.max.y-b.min.y)/(n.m.scale.y||1);
-  ['skinWeight','uv'].forEach(function(key){var w=sm.geometry.attributes[key];if(w&&w.normalized){var ww=new Float32Array(w.array.length),div=key==='uv'?65535:255;for(var j=0;j<ww.length;j++)ww[j]=w.array[j]/div;sm.geometry.setAttribute(key,new THREE.BufferAttribute(ww,w.itemSize));}});
-  s.scale.setScalar(k);s.position.set((b.min.x+b.max.x)*k/2,-b.min.y*k,(b.min.z+b.max.z)*k/2);s.rotation.y=Math.PI;
-  var v={s:s,sm:sm,mx:new THREE.AnimationMixer(s),a:{},cur:'',px:n.x,pz:n.z,and:0};
-  anis.forEach(function(src){var c=src.clone();c.tracks.forEach(function(t){if(/Hips\.position$/.test(t.name))for(var i=0;i<t.values.length;i+=3){t.values[i]=0;t.values[i+2]=0;}});v.a[c.name]=v.mx.clipAction(c);});
-  /* (pi) rosto vivo: mesma shader de rosto do bandido novo (pisca e boca pela voz real) */try{var r=rigEstado(n.id);r.model='npc';r.source=r.sm=sm;r.head=s.getObjectByName('mixamorigHead');rigMaterial(sm,NPCMESHY.rosto[n.id]||['mixamorigHead',1.626,.030,1.574,.024,.017,.009],r,1);v.rf=r;rigBocaMalha(r,s);}catch(e){v.rf=null;}
-  n.m.add(s);n.m.userData.meshy=v;
-}
-function npcMeshyTick(dt){
-  for(var id in NPCMESHY.arq){var n=NPCBY[id];if(!n||!n.m)continue;if(!n.m.userData.meshy)npcMeshyLiga(n);
-    var v=n.m.userData.meshy;if(!v||!n.m.visible)continue;
-    for(var i=0;i<n.m.children.length;i++)n.m.children[i].visible=n.m.children[i]===v.s;
-    var d=Math.hypot(n.x-v.px,n.z-v.pz);v.px=n.x;v.pz=n.z;v.and=dt>0&&d/dt>.25?.3:Math.max(0,v.and-dt);
-    var name=v.and>0?'Walking':n.talk>S.time?'Talk_with_Hands_Open':'Stand_and_Chat';
-    if(v.cur!==name&&v.a[name]){if(v.a[v.cur])v.a[v.cur].fadeOut(.25);v.a[name].reset().fadeIn(.25).play();v.cur=name;}
-    /* (pi) parado calmo e fala discreta ate chegar um clipe de parado do Meshy */if(v.a[v.cur])v.a[v.cur].timeScale=v.cur==='Walking'?1:v.cur==='Talk_with_Hands_Open'?.6:.2;if(v.rf&&v.rf.head)v.rf.head.rotation.y-=v.rf.last||0;v.mx.update(dt);npcMeshyFrente(v,dt);/* joao-de-frente */if(v.rf){rigTick(n,v.rf,dt);v.rf.last=v.rf.turn||0;}
-  }
-}
-/* joao-de-frente (CEO 17/11 'ta de lado pro policia'): clipes emprestados da Marlene giram o quadril; o no raiz ja olha o policial.
-   Depois do mixer o Hips gira no eixo vertical do mundo ate o peito ficar na frente do modelo. Andando volta a 0 (andar intacto). */
-var _jfA=new THREE.Vector3(),_jfB=new THREE.Vector3(),_jfQ=new THREE.Quaternion(),_jfR=new THREE.Quaternion(),_jfU=new THREE.Vector3(0,1,0);
-function npcMeshyFrente(v,dt){var J=v.jf;if(!J){J=v.jf={h:v.s.getObjectByName('mixamorigHips'),l:v.s.getObjectByName('mixamorigLeftShoulder'),r:v.s.getObjectByName('mixamorigRightShoulder'),c:v.s.getObjectByName('mixamorigHead'),y:0,k:0};}
-  if(!J.h||!J.l||!J.r||!J.h.parent)return;v.s.updateMatrixWorld(true);J.l.getWorldPosition(_jfA);J.r.getWorldPosition(_jfB);_jfA.sub(_jfB);
-  v.s.getWorldDirection(_jfB);var fy=Math.atan2(_jfB.x,_jfB.z),erro=dAng(fy,Math.atan2(-_jfA.z,_jfA.x));/* frente do peito = (E-D) x cima */
-  var anda=v.cur==='Walking',alvo=anda?0:clamp(-erro,-1.31,1.31);J.y+=(alvo-J.y)*(1-Math.exp(-dt*4));npcMeshyGira(J.h,J.y);
-  /* cabeca: o clipe ainda vira a cabeca uns 15 a 25 graus do peito; volta pra frente (rigTick soma depois o olhar para quem fala) */
-  if(J.c){J.c.getWorldDirection(_jfA);var ec=dAng(fy,Math.atan2(_jfA.x,_jfA.z));J.k+=((anda?0:clamp(-ec,-.7,.7))-J.k)*(1-Math.exp(-dt*4));npcMeshyGira(J.c,J.k);}}
-function npcMeshyGira(o,a){if(Math.abs(a)<1e-4||!o.parent)return;o.parent.getWorldQuaternion(_jfQ);_jfR.setFromAxisAngle(_jfU,a).premultiply(_jfQ.clone().invert()).multiply(_jfQ);o.quaternion.premultiply(_jfR);o.updateMatrixWorld(true);}
-npcMeshyLoad();
-/* NPC-MESHY-FIM */
-
 
 var _glFr=new THREE.Frustum(),_glFrM=new THREE.Matrix4(),_glFrS=new THREE.Sphere(new THREE.Vector3(),1.2),_glFrQ=-1;
 function glNaVista(n){if(_glFrQ!==S.time){_glFrQ=S.time;camera.updateMatrixWorld();_glFr.setFromProjectionMatrix(_glFrM.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}_glFrS.center.set(n.m.position.x,n.m.position.y+.9,n.m.position.z);return _glFr.intersectsSphere(_glFrS);}
@@ -10364,7 +10110,7 @@ function glTick(dt){motoristaVincula();if(!EST.on)motoristaSolta();bandidoTick(d
   var carroPose=S.uno?PCARS[UNO_SPOT].m:CAR;
   var dentro=dirige&&!P1.visible&&(S.phase==='cut'||S.camIn&&!SQV.mode)&&(S.uno?carroPose.userData.pedais:CAR.userData.cab?.visible);
   if(dentro&&bracos&&bracos.parent!==carroPose)carroPose.add(bracos);
-  var maos=dentro&&!bracos?motoristaMaosAro(CAR.userData.vol):P1.userData.maosAro;if(maos)maos.visible=!!(dentro&&!bracos);if(bracos)bracos.visible=!!dentro;npcMeshyTick(dt);
+  var maos=dentro&&!bracos?motoristaMaosAro(CAR.userData.vol):P1.userData.maosAro;if(maos)maos.visible=!!(dentro&&!bracos);if(bracos)bracos.visible=!!dentro;
   var cp=camera.position;
   for(var i=0;i<GLS.length;i++){
     var n=GLS[i],u=n.m.userData,G=u.gl;if(u.bandido||u.noTombo||!n.m.visible&&!(n.m===P1&&dentro))continue;
@@ -10391,7 +10137,7 @@ function glTick(dt){motoristaVincula();if(!EST.on)motoristaSolta();bandidoTick(d
         if(Number.isFinite(baixo)){G.apoioPasso=clamp(baixo,-.08,.08)*(G.cur==='Run'?1-sm(clamp((baixo-.055)/.052,0,1)):1);G.s.position.y-=G.apoioPasso;}}}
     if(u.cfg.velha)G.old.forEach(function(p){var b=p.b;b.scale.copy(p.sc);if(!u.profMesh){if(b.name==='Hips')b.scale.set(p.sc.x*1.12,p.sc.y,p.sc.z*1.12);if(b.name==='Spine1')b.scale.set(p.sc.x*(u.cfg.belly||1.25),p.sc.y,p.sc.z*1.18);}/* marlene-barriga: corpo HD nao infla */b.rotation.x+=b.name==='Spine2'?.10:b.name==='Neck'?-.06:0;});
     if(n.id==='chefe')profIdle(n,G);
-    if(n.talk>S.time||n.listenUntil>S.time||G.gw>.005||(n.id==='marlene'&&S.step==='cap3'))gestoFala(n,G,dt);if(n.finalAtor||n.id==='chefe'&&S.profCena&&!(G.gw>.005))cenaGesto(n,G);else if(n.id==='chefe'&&G.gw>.005)G.scenePose=null;
+    if(n.talk>S.time||n.listenUntil>S.time||G.gw>.005)gestoFala(n,G,dt);if(n.finalAtor||n.id==='chefe'&&S.profCena&&!(G.gw>.005))cenaGesto(n,G);else if(n.id==='chefe'&&G.gw>.005)G.scenePose=null;
     faceTick(n,dt);
     if(n.m===P1&&dirige){motoristaPose(G);if(u.gun)u.gun.visible=false;continue;}
     if(u.fc&&u.fc.head&&n.mode==='dance'&&/^dan[0-9]+$/.test(n.id)&&!(n.talk>S.time)){n.baileHeadLast=n.baileHead||0;u.fc.head.rotation.y+=n.baileHeadLast;}
@@ -10420,22 +10166,13 @@ function gRoda(b,de,para,ang){if(!b||!b.parent||!ang)return;_gX.crossVectors(de,
   b.parent.getWorldQuaternion(_gP);_gR.setFromAxisAngle(_gX,ang).multiply(_gP);_gP.conjugate();_gR.premultiply(_gP);b.quaternion.premultiply(_gR);}/* L' = Pw^-1 R Pw L */
 /* direcao do osso no mundo (ate o 1o filho) em out */
 function gDir(b,out){var c=b&&b.children[0];if(!c)return null;b.getWorldPosition(_gB);c.getWorldPosition(out);return out.sub(_gB).normalize();}
-/* No corpo da Marlene, o repouso do clipe civil deixa as mãos dentro do vestido.
-   Durante a visita, abrir os cotovelos e trazer os pulsos à frente, sempre sobre a pose do mixer. */
-function visitaBraco(ombro,cotovelo,lado,pulso,peso){
-  if(!ombro||!cotovelo)return;
-  _gE.set(lado*(.44+.09*pulso),-.95,-.22-.16*pulso).normalize().applyQuaternion(_gQ);
-  if(gDir(ombro,_gA))gRoda(ombro,_gA,_gE,_gA.angleTo(_gE)*peso);
-  _gE.set(-lado*(.08+.28*pulso),-.76+.64*pulso,-.67-.29*pulso).normalize().applyQuaternion(_gQ);
-  if(gDir(cotovelo,_gA))gRoda(cotovelo,_gA,_gE,_gA.angleTo(_gE)*peso);
-}
 function gestoFala(n,G,dt){
   if(!G.gestoPose){var nm=function(re){var o=null;G.s.traverse(function(x){if(!o&&x.isBone&&re.test(x.name))o=x;});return o;};
     G.gNeck=nm(/^(Neck|mixamorig:?Neck)$/);G.gHip=nm(/^(Hips|mixamorig:?Hips)$/);G.gSp=G.gSp||G.s.getObjectByName('Spine2')||G.s.getObjectByName('Torso')||G.s.getObjectByName('Spine1');
     G.gShR=G.gShR||nm(/^(RightShoulder|Shoulder\.?R)$/);G.gShL=G.gShL||nm(/^(LeftShoulder|Shoulder\.?L)$/);
     G.gestoPose=[G.gSp,G.ua,G.la,G.ual,G.lal,G.gNeck,G.gHip,G.gShR,G.gShL].filter(function(b,i,a){return b&&a.indexOf(b)===i;}).map(function(b){return {b:b,q:b.quaternion.clone()};});G.gw=0;}
   var fora=n.hero||n.heroi||n.down||n.sit||n.bike||n.finalAtor||n.id==='chefe'&&S.profCena&&(n.sit||n.profRise==null||S.time-n.profRise<1.8)||G.cur&&G.cur!=='Idle';/* gesto-fala2: Professor gesticula na cena depois de levantar */
-  var visita=!fora&&n.id==='marlene'&&S.step==='cap3'&&!!n.m.userData.profMesh;if(!visita&&G.visitaR!==undefined){G.visitaR=G.visitaL=0;}var fala=!fora&&n.talk>S.time,ouve=!fora&&!fala&&(n.listenUntil>S.time||visita);G.gw+=((fala?1:ouve?.6:0)-G.gw)*(1-Math.exp(-dt*3));if(fora)G.gw=0;if(G.gw<.005)return;
+  var fala=!fora&&n.talk>S.time,ouve=!fora&&!fala&&n.listenUntil>S.time;G.gw+=((fala?1:ouve?.6:0)-G.gw)*(1-Math.exp(-dt*3));if(fora)G.gw=0;if(G.gw<.005)return;
   var T=fala?gestoTom(n):'neutro',A=GESTO_TOM[T],r=n.m.userData.rigFacial,amp=r&&r.ampS!=null?r.ampS:.5,ph0=n.rfPhase||0,t=S.time-(n.talkStart||0),
     ph=t*2*Math.PI/A[1],b1=Math.pow(Math.max(0,Math.sin(ph)),2),b2=Math.pow(Math.max(0,Math.sin(ph+Math.PI)),2),D=Math.PI/180,w=G.gw,
     pico=fala?w*A[0]*(.85+.15*amp)*D:0;
@@ -10451,12 +10188,6 @@ function gestoFala(n,G,dt){
   }else{/* ouve: aceno em pulsos e troca de peso */
     var ac=Math.pow(Math.max(0,Math.sin(S.time*2*Math.PI*.4+ph0)),3);gRoda(G.gNeck,_gU,_gF,w*4*D*ac);
     _gA.crossVectors(_gF,_gU);gRoda(G.gHip,_gU,_gA,w*1.5*D*Math.sin(S.time*2*Math.PI*.22+ph0));gRoda(G.gSp,_gU,_gA,-w*1*D*Math.sin(S.time*2*Math.PI*.22+ph0));}
-  if(visita){
-    n.m.getWorldQuaternion(_gQ);var k=Math.min(1,w*1.55),passo=1-Math.exp(-dt*(fala?12:5));
-    var dir=G.visitaR||0,esq=G.visitaL||0;
-    G.visitaR=dir+((fala?b1:0)-dir)*passo;G.visitaL=esq+((fala?b2:0)-esq)*passo;
-    visitaBraco(G.ua,G.la,1,G.visitaR,k);visitaBraco(G.ual,G.lal,-1,G.visitaL,k);
-  }
 }
 /* gesto-fala2 (bocas5): policial gesticula pelo tom so parado, sem arma, falando em conversa. */
 var HG_N=null;
@@ -10823,7 +10554,7 @@ function updNPCs(dt,funkOn){
         var cap=transitLimit(n,tq.dx/tl,tq.dz/tl,tg,dt);tg=Math.min(tg,cap);transitReact(n,dt);}
       n.cv=(n.cv===undefined?n.sp:n.cv);n.cv+=(tg-n.cv)*Math.min(1,dt*(tg>n.cv?1.5:6));if(tg===0&&n.cv<.2)n.cv=0;
       if(n.bike)n.cv=Math.min(n.cv,transitLimit(n,tq.dx/tl,tq.dz/tl,n.cv,dt));
-      var ns=n.s+n.cv*dt,q=n.bike?transitBikePoint(n,ns):n.path.at(ns);if(!n.bike&&viaturaBarra(n,q)){n.cv=0;ns=n.s;q=n.path.at(ns);}
+      var ns=n.s+n.cv*dt,q=n.bike?transitBikePoint(n,ns):n.path.at(ns);
       if(n.bike&&!transitAdvance(n,q,dt)){n.cv=0;n.tfBikeWait=(n.tfBikeWait||0)+dt;if(n.tfBikeWait>6)tfBikeEscape(n,dt);q=transitBikePoint(n,n.s);}else{n.s=ns;n.tfBikeWait=0;n.tfBikeBack=0;}if(n.rota&&mrSegue(n,dt))q=transitBikePoint(n,0);/* CEO 06/11: moto faz curva em arco, nunca canto de 90 graus */
       if(!n.bike){q.x+=(n.trafficPedX||0)+(n.sx||0);q.z+=(n.trafficPedZ||0)+(n.sz||0);}n.x=q.x;n.z=q.z;n.y=npcY(n);if(!n.bike)atiradorForaCarro(n);
       var ty=yawTo(q.dx,q.dz),gy=dAng(n.yaw,ty);if(n.bike){var gl=dt*Math.min(MOTO_GIROMAX,MOTO_GIRO0+n.cv/MOTO_RMIN);gy=clamp(gy,-gl,gl);n.inc=(n.inc||0)+(clamp(gy/Math.max(dt,.001)*n.cv*MOTO_INC,-.3,.3)-(n.inc||0))*Math.min(1,dt*8);}else gy*=Math.min(1,dt*8);n.yaw+=gy;
@@ -11109,7 +10840,7 @@ function buildPedagioPRF(mp){
   prfModeloNivel=function(n){
     // ponytail: uma carga leve na abertura, detalhe do nível só quando a câmera chega a 24 m.
     if(n!==nivel){falhas={};nivel=n;}
-    var pedido=QS.get('prfPerfil'),id=base.userData.perto?(arquivos[pedido]?pedido:n===0?'maximo':n===1?'medio':'economico'):'economico';if(n===2)id='economico';else if(n===1&&id==='maximo')id='medio';
+    var pedido=QS.get('prfPerfil'),id=base.userData.perto?(arquivos[pedido]?pedido:n===0?'maximo':n===1?'medio':'economico'):'economico';if(MOB||n===2)id='economico';else if(n===1&&id==='maximo')id='medio';
     desejado=id;if(modelos[id]){mostra(id);return;}if(pend[id]||falhas[id])return;pend[id]=true;
     gltfTry('models/meshy/'+arquivos[id],function(g){
       var vi=g.scene,bb=new THREE.Box3().setFromObject(vi);vi.userData.largura=bb.getSize(V3()).z;vi.rotation.y=-Math.PI/2;
@@ -12094,8 +11825,8 @@ function buildNPCs(){
   addNPC('bigode',{shirt:0xff4fa3,pants:0x20242c,hat:'cap',hatC:0x15131a,mustache:true,chain:true,belly:true,skin:0x8a5a3c,scale:1.04},{x:87.4,z:46.2,yaw:Math.PI/2,mode:'idle',face:{x:75,z:49},name:'Bigode'});
   /* baile: dancarinos */
   var cols=[0xff4fa3,0x38e8ff,0xffc65a,0xb38bff,0x5dffa0,0xff7a3a],sk=[0x7a4a2c,0x8a5a3c,0x5c3a21,0xa8714f,0x6b4430]; /* CEO 55fbce932f: comunidade mais escura */
-  var spots=[[74,44],[78,53.5],[81,46.5],[72,51.5],[84,52],[76,45.5],[69.5,45],[80,43],[85,45],[73,55],[67.5,47.5],[82.5,49.5],[70.5,53.2],[86.3,51]];
-  var nD=14;
+  var spots=[[74,44],[78,53.5],[81,46.5],[72,51.5],[84,52],[76,45.5],[69.5,45],[80,43],[85,45],[73,55]];
+  var nD=10;
   for(i=0;i<nD;i++)addNPC('dan'+i,{shirt:cols[i%6],jaq:i%3===0?cols[(i+3)%6]:undefined,pants:i%2?0x20242c:0x3a4a7a,skin:sk[i%5],hair:i%3?0x1c1410:0x6a3a1a,dress:figuraFeminina(figuraBaile('dan'+i))?cols[(i+2)%6]:undefined},{x:spots[i][0],z:spots[i][1],yaw:yawTo(92-spots[i][0],49-spots[i][1]),mode:'dance'});
   /* MC no palco */
   addNPC('mc',{shirt:0xf4efe6,pants:0x20242c,hat:'cap',hatC:0xffc65a,skin:0x8a5a3c,chain:true},{x:92,z:49,yaw:Math.PI/2,mode:'dance'});
@@ -12360,7 +12091,7 @@ function setObj(t){setTxt('objt',t);$('obj').style.display=t?'':'none';}
 /* Q34_ACAO derivada no bloco MISSOES. */
 function wordsDur(t){t=t||'';return clamp(1.7+t.split(/\s+/).length*.17,2.3,3.7);}
 /* dublagem Kokoro (tools/dublar.py gera audio/voz/<id>.mp3 e esta lista: id -> [segundos, radio]) */
-var VOZ={"c6739dab":[4.16,0],"76d3baa8":[2.96,0],"a7244390":[4.16,1],"0de3606b":[3.68,1],"7ff03085":[4.08,1],"01e7c42b":[4.80,1],"5887d39c":[3.36,0],"4aaa3e95":[3.04,0],"80ba462e":[6.40,0],"a2e3c867":[3.92,0],"7320309d":[2.32,0],"4c562576":[2.48,0],"afece835":[2.16,0],"0081c467":[5.28,0],"8e1cdc1a":[5.04,0],"8145165b":[4.32,0],"2f8885eb":[4.16,0],"ec0245ee":[3.92,0],"cc923bd2":[5.44,0],"41df9f5c":[3.68,0],"a1ff8907":[3.04,0],"d6a8e83e":[2.16,0],"916504bf":[3.28,0],"02984091":[2.32,0],"2aeb6e53":[3.44,0],"865b688f":[2.16,0],"bd496bd0":[5.76,0],"cf9ba439":[4.48,0],"12ec7e1f":[3.12,0],"d430278a":[3.36,0],"ae7799ce":[3.20,0],"793d66a0":[7.20,0],"d9b8377d":[6.64,0],"49b7663c":[1.29,0],"cb8759d7":[2.88,1],"94ba5e28":[1.36,0],"4d1e87f6":[6.16,0],"941717d7":[3.28,0],"6320c119":[7.36,0],"99b722f0":[6.80,1],"5e32c3d7":[2.88,1],"2cf6c6ac":[2.08,1],"e8c558bf":[2.55,0],"eed8f07a":[3.36,0],"7a9f9d9d":[0.92,0],"c1ea7b88":[4.32,0],"a38129fb":[3.20,0],"ee8edd43":[3.68,0],"f6ba845f":[2.64,0],"b9639d97":[5.68,0],"15fcef18":[6.48,0],"30d39b45":[4.24,0],"6cfac315":[5.68,0],"90c9bb46":[4.24,0],"2ae9d327":[3.28,0],"520ddf23":[2.64,0],"efeceb3c":[5.12,0],"5f013a52":[4.56,0],"36302d95":[4.24,0],"3652339c":[4.72,0],"c655d02a":[3.04,1],"b68d1926":[3.84,0],"6a75b061":[1.68,1],"160f628d":[4.64,1],"4f1b779e":[3.44,1],"5feb2852":[3.76,1],"80a9e7e7":[2.48,1],"f5346c97":[3.68,1],"bd625359":[3.68,1],"6da4e41b":[1.60,1],"901bcb9e":[1.84,1],"65f83f7e":[3.36,1],"8cd8dd90":[3.44,1],"20aac962":[1.92,1],"5162d0d4":[2.00,1],"79cb48a1":[3.44,1],"fc31a730":[2.56,1],"53a29469":[3.12,1],"91ec627e":[2.08,1],"484ad05c":[2.00,1],"76e6ae9b":[2.00,1],"336bcb9f":[1.76,1],"8fe38815":[2.32,1],"cb2a56f2":[6.16,1],"e5cb2914":[4.40,1],"174ff401":[2.88,1],"29864ab9":[4.32,0],"7f4791fb":[5.20,0],"0788a929":[1.28,0],"040dfee5":[3.28,0],"499b3db4":[2.74,0],"80bdae6b":[4.24,0],"a2c97bf6":[3.28,0],"0cadd048":[4.08,0],"26417348":[3.36,0],"9aaf2dd3":[5.36,0],"c6dd85a3":[4.64,0],"4449600b":[2.56,0],"d1104961":[4.08,0],"51a1fab4":[3.84,0],"7d120dfe":[4.80,0],"ec485ae8":[3.92,0],"76dadd1e":[1.92,0],"aade49b0":[4.00,0],"5f51e30f":[3.92,0],"cca1195e":[2.40,0],"b525255d":[4.08,0],"539d79e6":[5.60,0],"3e54dde2":[3.68,1],"4be4f88a":[6.56,0],"160a0937":[5.12,0],"1cdd5a24":[3.76,0],"683a9493":[0.64,0],"3e2ac669":[3.52,0],"fb08a6be":[4.00,0],"87c2bba9":[5.36,0],"1f6d5ae9":[4.16,0],"d43df849":[8.08,0],"d0400804":[6.16,0],"edd1b9fb":[3.60,0],"6ba73e4c":[3.12,0],"5878cd3e":[6.56,0],"6bfe6703":[3.04,0],"d9265d02":[7.20,0],"8ca1c63a":[5.20,0],"22b1462f":[4.24,0],"6e173893":[3.12,0],"089c5eab":[4.40,0],"4ac49b6c":[3.68,0],"24906de2":[6.32,0],"c8312e45":[1.92,0],"70b635dc":[6.48,0],"e1d432b2":[5.60,0],"249d86e1":[6.40,0],"03ca5d1d":[7.52,0],"c1288428":[4.88,0],"b40136cf":[7.20,0],"2f00c874":[7.76,0],"f67a7100":[2.88,0],"63aa6c57":[4.96,0],"1be30eb1":[4.88,0],"b8085629":[4.80,0],"61886107":[5.68,0],"cd165e87":[4.08,0],"f28522b9":[6.96,0],"787748bb":[3.44,0],"b20dbccf":[1.76,0],"9d73c6a1":[4.08,0],"123b6351":[4.96,0],"eda6b844":[3.44,0],"5a0e21e0":[5.52,0],"b3347edb":[5.28,0],"9eff123b":[6.00,0],"1a3f21f7":[2.48,0],"9442d0e0":[4.64,0],"ee011913":[6.16,0],"25fbc89b":[3.20,0],"723ac617":[5.92,1],"25afa06d":[2.16,0],"fd5755f5":[4.72,0],"8e9e94cd":[5.36,0],"57871e9a":[5.92,0],"375215af":[4.72,0],"33bd341d":[2.64,0],"289d1f63":[1.52,0],"5b65dbeb":[3.76,1],"05b25172":[2.96,1],"80d52512":[1.35,0],"130bc47d":[2.80,0],"e0767d3f":[3.12,0],"930e861f":[3.20,0],"2b1d38cd":[3.28,0],"7df27cc4":[2.48,0],"44a13683":[2.32,0],"ec415fb6":[3.36,0],"dc35dcd0":[3.12,0],"21ea321c":[2.08,0],"ec76c16e":[4.88,0],"6be11c21":[3.92,0],"5f5ede09":[3.36,0],"a70e92e0":[1.14,1],"fde7c54c":[2.77,1],"e39994c3":[2.32,1],"0c9b7792":[3.04,0],"88a1218e":[2.72,0],"3caf92dc":[4.72,0],"bb087bdb":[3.28,0],"fc4e3013":[1.60,0],"2a1edf9c":[3.20,0],"4d168545":[5.20,0],"b5565ce4":[3.12,0],"de46d0d3":[1.68,0],"62468dba":[5.20,0],"2e7a21cd":[5.28,0],"72fc8fa9":[3.60,1],"76ca10ad":[2.16,0],"6b9146f7":[1.84,0],"374e0c97":[2.32,0],"b7918d3b":[2.72,0],"a35c4647":[2.24,0],"875be2e0":[1.74,0],"d80d1dbe":[0.61,0],"fa23d048":[0.60,0],"0722bbd2":[1.44,0],"384307d1":[4.72,0],"63032ee7":[5.36,1],"9b6b1d29":[2.83,0],"ef233c84":[1.21,0],"abe73f39":[3.28,0],"80d5a6ff":[3.84,0],"d7108ca3":[3.76,0],"d4bc06ec":[2.80,0],"5b214538":[2.80,0],"c9fcfb88":[1.60,0],"dd4d1e2c":[3.44,0],"2f2078d6":[5.28,0],"735cec6c":[4.00,0],"0ba30909":[2.32,0],"3355a5a9":[6.16,0],"0305b34a":[3.20,0],"bb15c7d3":[5.52,0],"f7fa9acd":[2.48,0],"764a6ca2":[3.20,0],"d5eaf10e":[2.64,0],"0147b29e":[4.08,0],"70de0aca":[3.04,0],"f01ee3d8":[3.92,0],"255f339b":[2.32,0],"cc78f7bc":[3.60,0],"7ddc5433":[3.52,0],"6aff87c6":[3.36,0],"e5a876fa":[4.32,0],"30d81f27":[3.76,0],"7b82976d":[3.84,0],"80789665":[4.56,0],"c531a7a6":[4.32,0],"1d735174":[2.88,0],"129f81f8":[3.68,0],"231b7c2e":[3.92,0],"2571bbf6":[4.24,0],"808fe77a":[4.80,0],"005aeebe":[3.60,0],"e41968a3":[3.68,0],"98a6ae0d":[3.04,0],"a49dc314":[2.56,0],"b95068c5":[2.08,0],"82c36594":[0.95,0],"595c0fd1":[1.37,0],"4f141324":[3.85,0],"e67e5cd9":[1.86,0],"9231f727":[1.69,0],"9195adb6":[0.60,0],"ce2911a9":[0.60,0],"6fcec5c3":[0.83,0],"85ddeb8a":[1.20,0],"deee3193":[2.32,0],"876fa325":[2.24,0],"3b251608":[3.36,0],"4f6a38ed":[2.48,0],"59ff115f":[1.68,0],"e61cf031":[3.04,0],"18b4c8b3":[3.20,0],"cdedbfa4":[2.16,0],"8f1663d6":[2.32,0],"a60164e4":[1.84,0],"f383ec15":[2.16,0],"f379d5a8":[3.36,0],"18943516":[2.24,0],"ac806c69":[2.00,0],"713f6194":[2.48,0],"7c8d1587":[2.96,0],"2f42a5be":[2.64,0],"40ee0e21":[2.72,0],"ecd1a9bf":[2.40,0],"a5e1932d":[2.40,0],"00b354a1":[1.36,0],"3dc22224":[1.76,0],"e87c0560":[2.48,0],"68461a16":[2.32,0],"8ee338ff":[3.76,0],"e54a4220":[2.48,0],"39099b57":[3.28,0],"c23061ba":[2.64,0],"0df66a00":[3.84,0],"c7e9cd90":[1.92,0],"9d25a7bc":[2.40,0],"d449e4c9":[3.04,0],"25aac755":[2.56,0],"400b1fcb":[2.32,0],"db2f7264":[2.72,0],"78c3a235":[2.16,0],"2cd3e67c":[2.00,0],"426ec524":[2.24,0],"df30fa6c":[3.28,0],"17ec0eb1":[2.88,0],"9f2bab39":[3.52,0],"0195fe26":[2.08,0],"4c8f52c1":[4.80,0],"d05ed6bb":[2.40,0],"bf5f00a7":[2.56,0],"6b38df54":[2.40,0],"d358be70":[2.00,0],"662f9b45":[2.88,0],"f91f720b":[2.48,0],"eda00c10":[1.28,0],"05810f15":[4.40,0],"090ba403":[2.72,0],"9fc13dcf":[2.88,0],"da948340":[1.92,0],"70ebc79f":[1.68,0],"3e70620d":[0.96,0],"67061aba":[2.00,0],"818b0fa3":[3.28,0],"d94f413e":[2.16,0],"fcd17345":[2.16,0],"84b9cb37":[1.84,0],"08b13207":[2.56,0],"51775bfb":[1.92,0],"79672b7d":[2.80,0],"6697a0d9":[2.32,0],"4dd755b4":[2.08,0],"e563c138":[3.52,0],"b8f1b581":[3.68,0],"cc11f8d9":[3.28,0],"d1c888e1":[2.80,0],"48fb50d9":[2.24,0],"3b6f1519":[1.20,0],"bf70d50d":[3.28,0],"18a15137":[2.24,0],"5ceca004":[2.40,0],"6cdd0857":[3.36,0],"0547cc43":[3.20,0],"4d08a5a6":[2.40,0],"50cdf4f8":[3.36,0],"4f65972b":[3.68,0],"2913030f":[3.60,0],"5b021896":[3.28,0],"bb4a5d8b":[3.20,0],"ba65e285":[2.32,0],"ec45c333":[3.84,0],"a9ef19e2":[2.24,0],"1f5c527b":[2.88,0],"8aebb078":[2.72,0],"cec403e0":[2.32,0],"384c799f":[6.96,0],"0f40eb38":[4.56,0],"ecd09c70":[4.96,0],"429a0203":[7.44,0],"a6e3a0d1":[5.12,1],"339e30da":[7.12,0],"5f020ba8":[4.96,0],"04e8e330":[2.64,1],"87d1294e":[3.68,0],"b2a0fc7e":[3.92,0],"b5f1eedb":[0.63,0],"407c0375":[5.12,1],"bbceeb6a":[1.84,0],"deb877f0":[5.04,1],"1062677b":[3.12,0],"ff9a3fa6":[2.61,0],"c8410998":[3.52,0],"49bb1761":[4.00,0],"11562d5d":[4.32,0],"d264bb8c":[1.87,0],"cdcf0c08":[2.24,0],"be90be14":[2.72,0],"f0d43e3d":[7.04,0],"3344f2a0":[4.96,0],"b106903c":[6.88,0],"e7902c55":[5.04,0],"e878f4cb":[3.84,0],"47aae5f7":[1.77,1],"ce9a01b8":[8.08,0],"21c5413f":[8.80,0],"00c7db31":[9.60,0],"73dbbdfc":[7.44,0],"1323b0a9":[9.52,0],"00d98568":[7.84,0],"4f8beb0c":[6.32,0],"1582cf91":[6.48,0],"c586bbce":[10.40,0],"8328fcc6":[6.88,0],"0bf2f465":[7.12,0],"a2142e92":[7.12,0],"4ed0e9d9":[7.04,0],"68a47e37":[8.56,0],"26172a72":[8.88,0],"c5e3c471":[5.84,0],"3d0f53e9":[0.51,0],"16a3afe8":[2.16,1],"1060d986":[2.52,0],"e3d89737":[2.72,0],"78f67e76":[1.44,0],"612ec609":[1.84,0],"c861b721":[2.80,0],"6d92a853":[1.28,0],"e0dd2d78":[2.70,0],"d2e9fc61":[2.80,0],"7c116563":[3.12,0],"eda53a51":[2.16,0],"9434321e":[4.00,0],"248031bd":[3.28,0],"048a05ce":[2.56,0],"f1f8a774":[3.20,1],"b30810c5":[2.40,0],"d854468e":[1.52,0],"e7791814":[3.44,1],"c4444352":[6.64,0],"88bce2d4":[3.76,0],"d2142ed2":[4.00,1],"1af5b733":[3.68,0],"def3b27d":[4.56,0],"f61553df":[1.84,0],"1231e719":[2.40,0],"1253f96a":[3.60,0],"9a85a189":[2.24,0],"551db004":[3.68,0],"26616016":[3.84,0],"3ef4b09b":[3.36,0],"542c64aa":[2.08,0],"fc3212ce":[4.08,0],"8d50499a":[3.04,0],"7091632f":[1.92,0],"7de784f2":[3.12,0],"0e2b600f":[4.80,0],"c389a97d":[3.12,0],"a8a59dd3":[2.72,0],"b47ffcd7":[4.24,1],"c32ca7fb":[4.24,0],"0f7a878b":[2.24,0],"1d1d903a":[3.28,0],"3091987a":[3.12,0],"77389fb3":[6.64,1],"ef4340f5":[4.00,0],"629315e6":[1.37,0],"cd2f3ded":[4.00,1],"2f2b8ad9":[3.31,0],"d2ec36a4":[3.92,0],"2e82e6fd":[0.51,0],"8309cd25":[1.06,0],"fec5aee6":[3.68,0],"7de9c002":[5.20,0],"592f0281":[3.28,0],"382efaf7":[2.24,0],"0cb191d1":[4.56,0],"6b2f82fc":[5.52,0],"ef1d1a7c":[3.84,0],"e20efb38":[5.84,0],"5e434e97":[3.60,0],"da6d8aef":[3.76,1],"1edeaa7e":[5.44,0],"a95c3233":[6.08,1],"74b00c39":[3.52,0],"857a848d":[6.16,0],"ca1c2800":[7.44,0],"166b8214":[7.76,0],"aff0ef83":[5.20,1],"37a444d9":[3.76,1],"5c91825c":[4.72,1],"85fdc39e":[5.92,0],"b4b20906":[4.80,0],"b14b5b17":[3.44,0],"0ea843da":[4.48,0],"3e04c343":[1.76,0],"5e32cdc8":[6.48,0],"55569755":[6.48,0],"a856457a":[3.60,0],"125adbc0":[10.56,0],"ad0b01ee":[4.64,0],"a1232af6":[2.64,0],"86b14ed4":[1.04,0],"4bbe4828":[3.36,0],"659c2800":[2.00,0],"307b89ca":[3.12,0],"24707209":[1.68,0],"5b9f061b":[2.80,0],"6c6b6b06":[1.36,0],"6446126a":[1.60,0],"e02a9623":[4.48,0],"f4d62394":[5.76,0],"aaeb58e2":[5.20,0],"f5292fde":[4.64,0],"2da90456":[2.72,0],"4385243b":[2.96,0],"f4c62e91":[2.48,0],"ad7c3c87":[7.28,0],"7dbd3295":[3.44,0],"7539c41e":[9.28,0],"32f2a7e3":[2.88,0],"ffcdefab":[6.64,0],"e224dca6":[10.88,0],"ed4777eb":[2.96,0],"2b749176":[4.40,0],"7f935124":[3.36,0],"5dd199f4":[11.68,0],"5412b865":[4.48,0],"71d5f308":[3.20,0],"2a104550":[5.04,0],"94a52122":[3.68,0],"13f228a5":[2.08,0],"44e2737b":[3.20,0],"8d4d1b1e":[8.64,0],"be7be365":[2.96,0],"0d3cd451":[8.08,0],"3e549eef":[1.28,0],"7b19db19":[5.68,0],"9334f238":[2.88,0],"9f02c3b6":[7.76,0],"0881bc29":[5.44,0],"3b6521cf":[2.56,0],"194c0c26":[5.36,0],"24b4e169":[4.96,0],"15d71d3a":[2.56,0],"638719a0":[6.96,0],"273293ed":[4.32,0],"6f3a5b44":[2.32,0],"d8fe7e00":[2.32,0],"600664ef":[2.08,0],"ac055522":[2.16,0],"f6b11446":[9.28,0],"e2b61abd":[5.68,0],"c84e066d":[2.16,0],"391520bf":[2.08,0],"5d235bfa":[4.64,0],"b5c38a7d":[5.04,0],"54714f99":[4.64,0],"9ea08f26":[4.04,0],"9726d7de":[3.92,0],"e359c75b":[3.20,0],"4fd8f371":[1.76,0],"c6204408":[2.32,0],"c131fdd7":[2.88,0],"189a3025":[7.52,0],"efb1dfbc":[1.92,0],"9a09c860":[1.84,0],"b68d4b70":[1.28,0],"b2db835a":[3.60,0],"ee5771b7":[4.64,0],"b89f2b62":[4.88,0],"e88cdbf9":[2.88,0],"c05e78a6":[2.08,0],"82a3e23f":[2.72,0],"9cfbd85a":[3.44,1]};
+var VOZ={"bf5916b3":[2.63,0],"cc6d5f31":[5.76,0],"a1c3f535":[3.59,0],"99f75b95":[1.81,0],"f0af26f5":[5.11,0],"e49f95b7":[4.19,0],"d8effadf":[4.53,0],"1febe45d":[4.27,0],"c6739dab":[4.16,0],"76d3baa8":[2.96,0],"a7244390":[4.16,1],"0de3606b":[3.68,1],"7ff03085":[4.08,1],"01e7c42b":[4.80,1],"5887d39c":[3.36,0],"4aaa3e95":[3.04,0],"80ba462e":[6.40,0],"a2e3c867":[3.92,0],"7320309d":[2.32,0],"4c562576":[2.48,0],"afece835":[2.16,0],"0081c467":[5.28,0],"8e1cdc1a":[5.04,0],"8145165b":[4.32,0],"2f8885eb":[4.16,0],"ec0245ee":[3.92,0],"cc923bd2":[5.44,0],"41df9f5c":[3.68,0],"a1ff8907":[3.04,0],"d6a8e83e":[2.16,0],"916504bf":[3.28,0],"02984091":[2.32,0],"2aeb6e53":[3.44,0],"865b688f":[2.16,0],"bd496bd0":[5.76,0],"cf9ba439":[4.48,0],"12ec7e1f":[3.12,0],"d430278a":[3.36,0],"ae7799ce":[3.20,0],"793d66a0":[7.20,0],"d9b8377d":[6.64,0],"49b7663c":[1.29,0],"cb8759d7":[2.88,1],"94ba5e28":[1.36,0],"4d1e87f6":[6.16,0],"941717d7":[3.28,0],"6320c119":[7.36,0],"99b722f0":[6.80,1],"5e32c3d7":[2.88,1],"2cf6c6ac":[2.08,1],"e8c558bf":[2.55,0],"eed8f07a":[3.36,0],"7a9f9d9d":[0.92,0],"c1ea7b88":[4.32,0],"a38129fb":[3.20,0],"ee8edd43":[3.68,0],"f6ba845f":[2.64,0],"b9639d97":[5.68,0],"15fcef18":[6.48,0],"30d39b45":[4.24,0],"6cfac315":[5.68,0],"90c9bb46":[4.24,0],"2ae9d327":[3.28,0],"520ddf23":[2.64,0],"efeceb3c":[5.12,0],"5f013a52":[4.56,0],"36302d95":[4.24,0],"3652339c":[4.72,0],"c655d02a":[3.04,1],"b68d1926":[3.84,0],"6a75b061":[1.68,1],"160f628d":[4.64,1],"4f1b779e":[3.44,1],"5feb2852":[3.76,1],"80a9e7e7":[2.48,1],"f5346c97":[3.68,1],"bd625359":[3.68,1],"6da4e41b":[1.60,1],"901bcb9e":[1.84,1],"65f83f7e":[3.36,1],"8cd8dd90":[3.44,1],"20aac962":[1.92,1],"5162d0d4":[2.00,1],"79cb48a1":[3.44,1],"fc31a730":[2.56,1],"53a29469":[3.12,1],"91ec627e":[2.08,1],"484ad05c":[2.00,1],"76e6ae9b":[2.00,1],"336bcb9f":[1.76,1],"8fe38815":[2.32,1],"cb2a56f2":[6.16,1],"e5cb2914":[4.40,1],"174ff401":[2.88,1],"29864ab9":[4.32,0],"7f4791fb":[5.20,0],"0788a929":[1.28,0],"040dfee5":[3.28,0],"499b3db4":[2.74,0],"80bdae6b":[4.24,0],"a2c97bf6":[3.28,0],"0cadd048":[4.08,0],"26417348":[3.36,0],"9aaf2dd3":[5.36,0],"c6dd85a3":[4.64,0],"4449600b":[2.56,0],"d1104961":[4.08,0],"51a1fab4":[3.84,0],"7d120dfe":[4.80,0],"ec485ae8":[3.92,0],"76dadd1e":[1.92,0],"aade49b0":[4.00,0],"5f51e30f":[3.92,0],"cca1195e":[2.40,0],"b525255d":[4.08,0],"539d79e6":[5.60,0],"3e54dde2":[3.68,1],"4be4f88a":[6.56,0],"160a0937":[5.12,0],"1cdd5a24":[3.76,0],"683a9493":[0.64,0],"3e2ac669":[3.52,0],"fb08a6be":[4.00,0],"87c2bba9":[5.36,0],"1f6d5ae9":[4.16,0],"d43df849":[8.08,0],"d0400804":[6.16,0],"edd1b9fb":[3.60,0],"6ba73e4c":[3.12,0],"5878cd3e":[6.56,0],"6bfe6703":[3.04,0],"d9265d02":[7.20,0],"8ca1c63a":[5.20,0],"22b1462f":[4.24,0],"6e173893":[3.12,0],"089c5eab":[4.40,0],"4ac49b6c":[3.68,0],"24906de2":[6.32,0],"c8312e45":[1.92,0],"70b635dc":[6.48,0],"e1d432b2":[5.60,0],"249d86e1":[6.40,0],"03ca5d1d":[7.52,0],"c1288428":[4.88,0],"b40136cf":[7.20,0],"2f00c874":[7.76,0],"f67a7100":[2.88,0],"63aa6c57":[4.96,0],"1be30eb1":[4.88,0],"b8085629":[4.80,0],"61886107":[5.68,0],"cd165e87":[4.08,0],"f28522b9":[6.96,0],"787748bb":[3.44,0],"b20dbccf":[1.76,0],"9d73c6a1":[4.08,0],"123b6351":[4.96,0],"eda6b844":[3.44,0],"5a0e21e0":[5.52,0],"b3347edb":[5.28,0],"9eff123b":[6.00,0],"1a3f21f7":[2.48,0],"9442d0e0":[4.64,0],"ee011913":[6.16,0],"25fbc89b":[3.20,0],"723ac617":[5.92,1],"25afa06d":[2.16,0],"fd5755f5":[4.72,0],"8e9e94cd":[5.36,0],"57871e9a":[5.92,0],"375215af":[4.72,0],"33bd341d":[2.64,0],"289d1f63":[1.52,0],"5b65dbeb":[3.76,1],"05b25172":[2.96,1],"80d52512":[1.35,0],"130bc47d":[2.80,0],"e0767d3f":[3.12,0],"930e861f":[3.20,0],"2b1d38cd":[3.28,0],"7df27cc4":[2.48,0],"44a13683":[2.32,0],"ec415fb6":[3.36,0],"dc35dcd0":[3.12,0],"21ea321c":[2.08,0],"ec76c16e":[4.88,0],"6be11c21":[3.92,0],"5f5ede09":[3.36,0],"a70e92e0":[1.14,1],"fde7c54c":[2.77,1],"e39994c3":[2.32,1],"0c9b7792":[3.04,0],"88a1218e":[2.72,0],"3caf92dc":[4.72,0],"bb087bdb":[3.28,0],"fc4e3013":[1.60,0],"2a1edf9c":[3.20,0],"4d168545":[5.20,0],"b5565ce4":[3.12,0],"de46d0d3":[1.68,0],"62468dba":[5.20,0],"2e7a21cd":[5.28,0],"72fc8fa9":[3.60,1],"76ca10ad":[2.16,0],"6b9146f7":[1.84,0],"374e0c97":[2.32,0],"b7918d3b":[2.72,0],"a35c4647":[2.24,0],"875be2e0":[1.74,0],"d80d1dbe":[0.61,0],"fa23d048":[0.60,0],"0722bbd2":[1.44,0],"384307d1":[4.72,0],"63032ee7":[5.36,1],"9b6b1d29":[2.83,0],"ef233c84":[1.21,0],"abe73f39":[3.28,0],"80d5a6ff":[3.84,0],"d7108ca3":[3.76,0],"d4bc06ec":[2.80,0],"5b214538":[2.80,0],"c9fcfb88":[1.60,0],"dd4d1e2c":[3.44,0],"2f2078d6":[5.28,0],"735cec6c":[4.00,0],"0ba30909":[2.32,0],"3355a5a9":[6.16,0],"0305b34a":[3.20,0],"bb15c7d3":[5.52,0],"f7fa9acd":[2.48,0],"764a6ca2":[3.20,0],"d5eaf10e":[2.64,0],"0147b29e":[4.08,0],"70de0aca":[3.04,0],"f01ee3d8":[3.92,0],"255f339b":[2.32,0],"cc78f7bc":[3.60,0],"7ddc5433":[3.52,0],"6aff87c6":[3.36,0],"e5a876fa":[4.32,0],"30d81f27":[3.76,0],"7b82976d":[3.84,0],"80789665":[4.56,0],"c531a7a6":[4.32,0],"1d735174":[2.88,0],"129f81f8":[3.68,0],"231b7c2e":[3.92,0],"2571bbf6":[4.24,0],"808fe77a":[4.80,0],"005aeebe":[3.60,0],"e41968a3":[3.68,0],"98a6ae0d":[3.04,0],"a49dc314":[2.56,0],"b95068c5":[2.08,0],"82c36594":[0.95,0],"595c0fd1":[1.37,0],"4f141324":[3.85,0],"e67e5cd9":[1.86,0],"9231f727":[1.69,0],"9195adb6":[0.60,0],"ce2911a9":[0.60,0],"6fcec5c3":[0.83,0],"85ddeb8a":[1.20,0],"deee3193":[2.32,0],"876fa325":[2.24,0],"3b251608":[3.36,0],"4f6a38ed":[2.48,0],"59ff115f":[1.68,0],"e61cf031":[3.04,0],"18b4c8b3":[3.20,0],"cdedbfa4":[2.16,0],"8f1663d6":[2.32,0],"a60164e4":[1.84,0],"f383ec15":[2.16,0],"f379d5a8":[3.36,0],"18943516":[2.24,0],"ac806c69":[2.00,0],"713f6194":[2.48,0],"7c8d1587":[2.96,0],"2f42a5be":[2.64,0],"40ee0e21":[2.72,0],"ecd1a9bf":[2.40,0],"a5e1932d":[2.40,0],"00b354a1":[1.36,0],"3dc22224":[1.76,0],"e87c0560":[2.48,0],"68461a16":[2.32,0],"8ee338ff":[3.76,0],"e54a4220":[2.48,0],"39099b57":[3.28,0],"c23061ba":[2.64,0],"0df66a00":[3.84,0],"c7e9cd90":[1.92,0],"9d25a7bc":[2.40,0],"d449e4c9":[3.04,0],"25aac755":[2.56,0],"400b1fcb":[2.32,0],"db2f7264":[2.72,0],"78c3a235":[2.16,0],"2cd3e67c":[2.00,0],"426ec524":[2.24,0],"df30fa6c":[3.28,0],"17ec0eb1":[2.88,0],"9f2bab39":[3.52,0],"0195fe26":[2.08,0],"4c8f52c1":[4.80,0],"d05ed6bb":[2.40,0],"bf5f00a7":[2.56,0],"6b38df54":[2.40,0],"d358be70":[2.00,0],"662f9b45":[2.88,0],"f91f720b":[2.48,0],"eda00c10":[1.28,0],"05810f15":[4.40,0],"090ba403":[2.72,0],"9fc13dcf":[2.88,0],"da948340":[1.92,0],"70ebc79f":[1.68,0],"3e70620d":[0.96,0],"67061aba":[2.00,0],"818b0fa3":[3.28,0],"d94f413e":[2.16,0],"fcd17345":[2.16,0],"84b9cb37":[1.84,0],"08b13207":[2.56,0],"51775bfb":[1.92,0],"79672b7d":[2.80,0],"6697a0d9":[2.32,0],"4dd755b4":[2.08,0],"e563c138":[3.52,0],"b8f1b581":[3.68,0],"cc11f8d9":[3.28,0],"d1c888e1":[2.80,0],"48fb50d9":[2.24,0],"3b6f1519":[1.20,0],"bf70d50d":[3.28,0],"18a15137":[2.24,0],"5ceca004":[2.40,0],"6cdd0857":[3.36,0],"0547cc43":[3.20,0],"4d08a5a6":[2.40,0],"50cdf4f8":[3.36,0],"4f65972b":[3.68,0],"2913030f":[3.60,0],"5b021896":[3.28,0],"bb4a5d8b":[3.20,0],"ba65e285":[2.32,0],"ec45c333":[3.84,0],"a9ef19e2":[2.24,0],"1f5c527b":[2.88,0],"8aebb078":[2.72,0],"cec403e0":[2.32,0],"384c799f":[6.96,0],"0f40eb38":[4.56,0],"ecd09c70":[4.96,0],"429a0203":[7.44,0],"a6e3a0d1":[5.12,1],"339e30da":[7.12,0],"5f020ba8":[4.96,0],"04e8e330":[2.64,1],"87d1294e":[3.68,0],"b2a0fc7e":[3.92,0],"b5f1eedb":[0.63,0],"407c0375":[5.12,1],"bbceeb6a":[1.84,0],"deb877f0":[5.04,1],"1062677b":[3.12,0],"ff9a3fa6":[2.61,0],"c8410998":[3.52,0],"49bb1761":[4.00,0],"11562d5d":[4.32,0],"d264bb8c":[1.87,0],"cdcf0c08":[2.24,0],"be90be14":[2.72,0],"f0d43e3d":[7.04,0],"3344f2a0":[4.96,0],"b106903c":[6.88,0],"e7902c55":[5.04,0],"e878f4cb":[3.84,0],"47aae5f7":[1.77,1],"ce9a01b8":[8.08,0],"21c5413f":[8.80,0],"00c7db31":[9.60,0],"73dbbdfc":[7.44,0],"1323b0a9":[9.52,0],"00d98568":[7.84,0],"4f8beb0c":[6.32,0],"1582cf91":[6.48,0],"c586bbce":[10.40,0],"8328fcc6":[6.88,0],"0bf2f465":[7.12,0],"a2142e92":[7.12,0],"4ed0e9d9":[7.04,0],"68a47e37":[8.56,0],"26172a72":[8.88,0],"c5e3c471":[5.84,0],"3d0f53e9":[0.51,0],"16a3afe8":[2.16,1],"1060d986":[2.52,0],"e3d89737":[2.72,0],"78f67e76":[1.44,0],"612ec609":[1.84,0],"c861b721":[2.80,0],"6d92a853":[1.28,0],"e0dd2d78":[2.70,0],"d2e9fc61":[2.80,0],"7c116563":[3.12,0],"eda53a51":[2.16,0],"9434321e":[4.00,0],"248031bd":[3.28,0],"048a05ce":[2.56,0],"f1f8a774":[3.20,1],"b30810c5":[2.40,0],"d854468e":[1.52,0],"e7791814":[3.44,1],"c4444352":[6.64,0],"88bce2d4":[3.76,0],"d2142ed2":[4.00,1],"1af5b733":[3.68,0],"def3b27d":[4.56,0],"f61553df":[1.84,0],"1231e719":[2.40,0],"1253f96a":[3.60,0],"9a85a189":[2.24,0],"551db004":[3.68,0],"26616016":[3.84,0],"3ef4b09b":[3.36,0],"542c64aa":[2.08,0],"fc3212ce":[4.08,0],"8d50499a":[3.04,0],"7091632f":[1.92,0],"7de784f2":[3.12,0],"0e2b600f":[4.80,0],"c389a97d":[3.12,0],"a8a59dd3":[2.72,0],"b47ffcd7":[4.24,1],"c32ca7fb":[4.24,0],"0f7a878b":[2.24,0],"1d1d903a":[3.28,0],"3091987a":[3.12,0],"77389fb3":[6.64,1],"ef4340f5":[4.00,0],"629315e6":[1.37,0],"cd2f3ded":[4.00,1],"2f2b8ad9":[3.31,0],"d2ec36a4":[3.92,0],"2e82e6fd":[0.51,0],"8309cd25":[1.06,0],"fec5aee6":[3.68,0],"7de9c002":[5.20,0],"592f0281":[3.28,0],"382efaf7":[2.24,0],"0cb191d1":[4.56,0],"6b2f82fc":[5.52,0],"ef1d1a7c":[3.84,0],"e20efb38":[5.84,0],"5e434e97":[3.60,0],"da6d8aef":[3.76,1],"1edeaa7e":[5.44,0],"a95c3233":[6.08,1],"74b00c39":[3.52,0],"857a848d":[6.16,0],"ca1c2800":[7.44,0],"166b8214":[7.76,0],"aff0ef83":[5.20,1],"37a444d9":[3.76,1],"5c91825c":[4.72,1],"85fdc39e":[5.92,0],"b4b20906":[4.80,0],"b14b5b17":[3.44,0],"0ea843da":[4.48,0],"3e04c343":[1.76,0],"5e32cdc8":[6.48,0],"55569755":[6.48,0],"a856457a":[3.60,0],"125adbc0":[10.56,0],"ad0b01ee":[4.64,0],"a1232af6":[2.64,0],"86b14ed4":[1.04,0],"4bbe4828":[3.36,0],"659c2800":[2.00,0],"307b89ca":[3.12,0],"24707209":[1.68,0],"5b9f061b":[2.80,0],"6c6b6b06":[1.36,0],"6446126a":[1.60,0],"e02a9623":[4.48,0],"f4d62394":[5.76,0],"aaeb58e2":[5.20,0],"f5292fde":[4.64,0],"2da90456":[2.72,0],"4385243b":[2.96,0],"f4c62e91":[2.48,0],"ad7c3c87":[7.28,0],"7dbd3295":[3.44,0],"7539c41e":[9.28,0],"32f2a7e3":[2.88,0],"ffcdefab":[6.64,0],"e224dca6":[10.88,0],"ed4777eb":[2.96,0],"2b749176":[4.40,0],"7f935124":[3.36,0],"5dd199f4":[11.68,0],"5412b865":[4.48,0],"71d5f308":[3.20,0],"2a104550":[5.04,0],"94a52122":[3.68,0],"13f228a5":[2.08,0],"44e2737b":[3.20,0],"8d4d1b1e":[8.64,0],"be7be365":[2.96,0],"0d3cd451":[8.08,0],"3e549eef":[1.28,0],"7b19db19":[5.68,0],"9334f238":[2.88,0],"9f02c3b6":[7.76,0],"0881bc29":[5.44,0],"3b6521cf":[2.56,0],"194c0c26":[5.36,0],"24b4e169":[4.96,0],"15d71d3a":[2.56,0],"638719a0":[6.96,0],"273293ed":[4.32,0],"6f3a5b44":[2.32,0],"d8fe7e00":[2.32,0],"600664ef":[2.08,0],"ac055522":[2.16,0],"f6b11446":[9.28,0],"e2b61abd":[5.68,0],"c84e066d":[2.16,0],"391520bf":[2.08,0],"5d235bfa":[4.64,0],"b5c38a7d":[5.04,0],"54714f99":[4.64,0],"9ea08f26":[4.04,0],"9726d7de":[3.92,0],"e359c75b":[3.20,0],"4fd8f371":[1.76,0],"c6204408":[2.32,0],"c131fdd7":[2.88,0],"189a3025":[7.52,0],"efb1dfbc":[1.92,0],"9a09c860":[1.84,0],"b68d4b70":[1.28,0],"b2db835a":[3.60,0],"ee5771b7":[4.64,0],"b89f2b62":[4.88,0],"e88cdbf9":[2.88,0],"c05e78a6":[2.08,0],"82a3e23f":[2.72,0],"9cfbd85a":[3.44,1]};
 Object.assign(VOZ,{"a18e76b6":[1.69,0],"5cd66955":[1.27,0],"21cf21be":[1.4,0],"dda0e431":[1.84,0],"a6056723":[2.48,0]});
 var VOZB={buf:{},ord:[],src:null,want:null};
 function vozH(s){var x=5381;for(var i=0;i<s.length;i++)x=(Math.imul(x,33)^s.charCodeAt(i))>>>0;return('0000000'+x.toString(16)).slice(-8);}
@@ -12589,7 +12320,7 @@ function say(txt,cls,dur,quem,mudo,tipo,emocao){if(txt==null)return;if(cls!=='sy
   for(var k=SUBS.length-1;k>=0;k--)if(!SUBS[k].keep&&!SUBS[k].hudEspera&&SUBS[k].exp-S.time<.35){SUBS[k].el.remove();SUBS.splice(k,1);} /* legenda que ja ia sair nao divide a tela com a nova */
   el.style.setProperty('--hud-duration',dd+'s');
   $('subs').appendChild(el);var hudItem={el:el,exp:S.time+dd,hudTipo:hudTelaTipo(tipo||cls)};SUBS.push(hudItem);hudQuizLegenda();S.lastEv=S.time;
-  hudItem.rfEmo=emocao||'neutro';hudItem.hudVoz=function(){if(!mudo&&cls!=='sys'&&quem){var ator=faceSay(quem,dd,hudItem.rfEmo||'neutro',VOZ[vozH(vk)]?vozH(vk):null,txt);if(ator){hudItem.ator=ator;hudItem.falaSeq=ator.falaSeq;hudItem.falaHeroi=quem==='Você';}}
+  hudItem.rfEmo=emocao||'neutro';hudItem.hudVoz=function(){if(!mudo&&cls!=='sys'&&quem)faceSay(quem,dd,hudItem.rfEmo||'neutro',VOZ[vozH(vk)]?vozH(vk):null,txt);
   // ponytail: a fila retém avisos ate serem lidos, sem teto que descarte o terceiro.
   if(!mudo&&cls!=='sys'){vozPlay(vk,el);if(!VOZ[vozH(vk)]&&!VOZ_REDUB[vozH(vk)]&&SEMVOZ.indexOf(txt)<0&&txt.indexOf('Texto inedito')<0)SEMVOZ.push(txt);}};hudTela();
 }
@@ -12693,10 +12424,7 @@ function questFala(acao){
   }
   return false;
 }
-function skipSub(){if(S.fcCena&&!S.fcCena.conversa)return;var k=SUBS.findIndex(function(u){return !u.hudEspera;});if(k>=0){var sub=SUBS.splice(k,1)[0],ator=sub.ator;sub.el.remove();
-    if(ator&&ator===S.falante&&ator.falaSeq===sub.falaSeq){ator.talk=0;S.falante=null;if(sub.falaHeroi)ROSTO.fala=0;
-      NPCS.forEach(function(n){if(n.listenTo===ator)n.listenUntil=0;});}}
-  if(SEQ.next>S.time)SEQ.next=S.time;falaPula();}
+function skipSub(){if(S.fcCena&&!S.fcCena.conversa)return;var k=SUBS.findIndex(function(u){return !u.hudEspera;});if(k>=0)SUBS.splice(k,1)[0].el.remove();if(SEQ.next>S.time)SEQ.next=S.time;falaPula();}
 
 /* ---------- audio (SFX curtos, sem voz, sem musica) ---------- */
 var AC=null,MUTED=false,AU={gestures:0,unlocked:false,master:null,mus:null,amb:null,eng:null,sir:null,noise:null,nextBeat:0,step16:0,ambT:0,bpm:92,sirO:null};
@@ -13050,7 +12778,7 @@ function showDec(tag,title,text,opts,deathShown,mouse){hudClasseLimpa();
 function closeDec(){hudClasseLimpa();$('dec').classList.remove('on');S.decOpts=null;}
 function closeDecPlay(){closeDec();S.phase='play';}
 function askQ(q,cb,tag,secs,trava){
-  var m=(secs||15)+rpgAt('foco')*.5/* foco-meio */;QZ={q:q,cb:cb,t:m,max:m,done:false,ok:false,rapido:trava!=null,trava:trava||0,abre:performance.now()};
+  var m=(secs||15)+rpgAt('foco');QZ={q:q,cb:cb,t:m,max:m,done:false,ok:false,rapido:trava!=null,trava:trava||0,abre:performance.now()};
   $('qtag').textContent=tag||'QUESTÃO · CERTO OU ERRADO';$('qt').textContent=q.t;
   $('qres').style.display='none';$('qbtns').style.display='flex';$('qC').lastChild.textContent='{{qc}}';$('qE').lastChild.textContent='{{qe}}';$('qbar').style.transform='scaleX(1)';
   $('q').classList.add('on');S.phase='ui';
@@ -15105,7 +14833,7 @@ function pkAgarraVoo(dx,dz){
 }
 function pkReset(){P.preSalto=0;P.saltoPronto=false;P.saltoCaminhada=false;P.pouso=null;P.saltoCorrida=false;P.arc=null;P.alt=0;P.vy=0;P.mt=null;P.clr=.05;P.jb=-9;P.dip=0;P.flowN=0;P.flowT=-9;P.vaultT=0;}
 act.jump=function(){if(S.phase!=='play'||cenaOn()||lifeActive())return;if(S.inCar)C0.hbT=S.time;else P.jb=S.time;};
-/* CEO 17/11 lento-mirando: mirando anda a 40% do andar; calibragem do ritmo do clipe */var MIRA_ANDA={v:1.4,ag:.7,clipe:1.5};// Instantes em que o tornozelo entra na parte baixa do ciclo do GLB (par = pé esquerdo e direito).
+// Instantes em que o tornozelo entra na parte baixa do ciclo do GLB (par = pé esquerdo e direito).
 var BOTINA_FASE={Walking:[.24,.71],Running:[.13,.66],RunFast:[0,.49],Cautious_Crouch_Walk_Forward:[.25,.80],Run_and_Shoot:[.78,.27],Slow_Walk_Reload:[.08,.27,.42,.61,.75,.89]},BOTINA_PE=new THREE.Vector3();
 function botinaNaAgua(x,z){
   if(Math.abs(P.y-surfaceY(x,z))>.13)return false;
@@ -15179,7 +14907,7 @@ function footUpdate(dt,inp){
     P.x=A.x0+(A.x1-A.x0)*ka;P.z=A.z0+(A.z1-A.z0)*ka;P.alt=A.a0+(A.a1-A.a0)*ka+4*A.H*ka*(1-ka);P.y=groundY(P.x,P.z)+P.alt;P.spd=0;
     tetoClamp();if(ka>=1){P.arc=null;P.saltoCorrida=false;P.vy=0;P.vx=P.vz=0;P.clr=P.alt;P.dip=.12;sfx('pkPouso',.3);flow('SALTOU',5);}return;}
   var fl=S.time-P.flowT<FLOW_WIN?Math.min(.3,.08*(P.flowN-1)):0;
-  var sp=(CB&&CB.drawn&&CB.aimHold?MIRA_ANDA.v*(P.crouch?MIRA_ANDA.ag:1):(inp.run?(P.crouch?4.75:CB.drawn&&(CB.item!==0||CB.aimHold)?4.65:5.65):(CB.drawn?(CB.item===0?1.62*(!P.crouch&&!CB.aimHold?1.12:1):2.25):3.25))*(1+fl)*(P.crouch?.45:1))*(S.ferido>S.time?.55:1),/* machucado: passo pesado */fx=inp.fx,fy=inp.fy,m=Math.hypot(fx,fy);
+  var sp=(inp.run?(P.crouch?4.75:CB.drawn&&(CB.item!==0||CB.aimHold)?4.65:5.65):(CB.drawn?(CB.item===0?1.62*(!P.crouch&&!CB.aimHold?1.12:1):2.25):3.25))*(1+fl)*(P.crouch?.45:1)*(S.ferido>S.time?.55:1),/* machucado: passo pesado */fx=inp.fx,fy=inp.fy,m=Math.hypot(fx,fy);
   P.sprintBaixo=P.crouch&&inp.run&&!(CB.drawn&&CB.aimHold);if(m>1){fx/=m;fy/=m;}/* CEO 16/11 (po) 'correndo pra tras em velocidade maxima, nao e um super-homem': de costas o teto e 3,4 m/s (era 6); de frente e de lado nada muda */if(fy<0&&sp>3.4){var bkc=-fy/(Math.hypot(fx,fy)||1);sp=3.4+(sp-3.4)*(1-bkc);}
   var tvx=(-Math.sin(L.yaw)*fy+Math.cos(L.yaw)*fx)*sp,tvz=(-Math.cos(L.yaw)*fy-Math.sin(L.yaw)*fx)*sp;
   if(P.mt){ /* escalada: sobe e pisa no topo */
@@ -15305,10 +15033,9 @@ function sequenciaComeca(mode){
   TP.k=1;if(!SQV.aprox)sequenciaSom();
 }
 /* LUTA3P-INI: mesmo heroi, sem efeito dependente do nivel grafico. */
-var LUTA3P={on:false,t:0,golpe:0,ok:true,fov:0,stop:0,bateu:true,imp:0,calm:0,paradas:0};
-var PROVA_ACAO=false;
-function luta3pResposta(ok){LUTA3P.golpe=ok?.46:.8;LUTA3P.ok=ok;LUTA3P.bateu=false;LUTA3P.calm=0;}
-function luta3pCamera(dt){if(PROVA_ACAO&&!(S.soco&&S.soco.queda)&&!LUTA3P.on){/* CEO 16/11 (ow): luta volta para a 1a pessoa; a camera lateral sai. O modelo novo do bandido olha para +Z: vira de frente para o heroi (antes ficava de costas e a camera lateral escondia). */return false;}
+var LUTA3P={on:false,t:0,golpe:0,ok:true,fov:0};
+function luta3pResposta(ok){LUTA3P.golpe=ok?.46:.8;LUTA3P.ok=ok;}
+function luta3pCamera(dt){
  var F=LUTA3P,T=TP,z=S.soco,n=z&&z.luta?z.n:S.step==='topo34'?NPCBY.fujao:null;
  if(S.phase!=='play'||!n||(S.step!=='topo34'&&!(z&&z.luta))){
   if(F.on){F.on=false;F.golpe=0;camera.fov=F.fov;camera.updateProjectionMatrix();T.k=0;if(T.m)T.m.visible=false;VM.scale.setScalar(1);}
@@ -15316,41 +15043,21 @@ function luta3pCamera(dt){if(PROVA_ACAO&&!(S.soco&&S.soco.queda)&&!LUTA3P.on){/*
  }
  if(!T.m){tpCam(0);return false;}
  if(!F.on){F.on=true;F.t=0;F.fov=camera.fov;T.st=0;}
- F.t+=dt;
- /* PROVA-ACAO: parada no impacto, 4 quadros (4/60 s), so para os dois lutadores. */
- var pa=PROVA_ACAO&&!(z&&z.queda),dur=F.ok?.46:.8,parado=false;
- if(pa){
-  if(F.stop>1e-4){F.stop-=dt;parado=true;F.paradas++;}
-  else{var g0=F.golpe;F.golpe=Math.max(0,F.golpe-dt);
-   if(!F.bateu&&g0>0&&F.golpe<=dur*.5){F.bateu=true;F.golpe=dur*.5;F.stop=4/60;F.imp=1;parado=true;}}
-  if(!parado){F.imp=Math.max(0,F.imp-dt/.8);if(F.golpe<=0)F.calm+=dt;}
- }else F.golpe=Math.max(0,F.golpe-dt);
- FIST.visible=false;VM.visible=false;P1.visible=false;PW.visible=false;
+ F.t+=dt;F.golpe=Math.max(0,F.golpe-dt);FIST.visible=false;VM.visible=false;P1.visible=false;PW.visible=false;
  T.m.visible=true;T.k=1;if(T.gun)T.gun.visible=false;
  /* ponytail: o heroi nao tem clipe de soco. Avanco curto do corpo com guarda existente, sem deformar ossos. */
- var name=z&&z.queda?T.cur:T.a.Combat_Stance?'Combat_Stance':'Idle_3',a=T.a[name],old=T.a[T.cur];/* luta-combate: guarda alta sempre */
+ var name=z&&z.queda?T.cur:F.golpe>0?'Combat_Stance':'Idle_3',a=T.a[name],old=T.a[T.cur];
  if(a&&T.cur!==name){a.reset().setEffectiveWeight(1).fadeIn(.08).play();if(old)old.fadeOut(.08);T.cur=name;}
- if(T.a[T.cur]){T.a[T.cur].timeScale=F.golpe>0?1.8:1;T.a[T.cur].paused=false;}T.mx.update(pa&&parado?0:dt);if(z&&z.queda)cacambaPose(T,z.queda.t,false);
+ if(T.a[T.cur]){T.a[T.cur].timeScale=1;T.a[T.cur].paused=false;}T.mx.update(dt);if(z&&z.queda)cacambaPose(T,z.queda.t,false);
  var dx=n.x-P.x,dz=n.z-P.z,d=Math.hypot(dx,dz)||1,ux=dx/d,uz=dz/d,
- k=F.golpe>0?Math.sin((1-F.golpe/(F.ok?.46:.8))*Math.PI):0,passo=(F.ok?.15:-.12)*k,
+ k=F.golpe>0?Math.sin((1-F.golpe/(F.ok?.46:.8))*Math.PI):0,passo=(F.ok?.42:-.3)*k,
  q=z&&z.queda,hy=q?groundY(P.x,P.z)+P.alt:P.y;
  T.m.position.set(P.x+ux*passo,hy+(T.oy||0),P.z+uz*passo);T.m.rotation.set(0,q?0:Math.atan2(ux,uz),q&&q.t<.65?-.2*Math.sin(Math.PI*q.t/.65):0);
- if(!q){n.m.rotation.set(0,Math.atan2(ux,uz),0);/* luta-combate: convencao -Z do jogo, igual socoPre; bandido-frente ja vira a malha */
-  if(pa){ /* bandido desliza ate o alcance antes do contato; no acerto e empurrado e inclina */
-   var off=(F.ok?.75:1.25)*k-(F.ok?.3:0)*F.imp;
-   n.m.position.set(n.x-ux*off,n.y,n.z-uz*off);
-   if(F.imp>0){if(F.ok)n.m.rotateX(-.34*F.imp);else T.m.rotateX(-.26*F.imp);}
-  }}
+ if(!q){n.m.rotation.set(0,Math.atan2(-ux,-uz),0);}
  var cx=(P.x+n.x)*.5,cz=(P.z+n.z)*.5,cy=(hy+n.y)*.5,
  dist=Math.max(3.2,d*1.25,2.1/(Math.tan(58*Math.PI/360)*camera.aspect)),drift=Math.sin(F.t*.35)*.16;
  /* Vista lateral baixa. Na queda acompanha os dois ate a cacamba, sem alterar a trajetoria. */
- var fv=58;
- if(pa){ /* corte seco no eixo: plano fechado enquanto dura o golpe; fora dele, aproximacao lenta */
-  if(F.golpe>0||F.stop>1e-4||F.imp>.08){fv=camera.aspect<1?50:42;dist=dist*.9-.06*F.imp;drift=0;
-   /* enquadra pelo meio dos dois corpos como estao na tela (bandido deslizou e foi empurrado) */
-   cx=(T.m.position.x+n.m.position.x)*.5+ux*.6;cz=(T.m.position.z+n.m.position.z)*.5+uz*.6;}
-  else dist*=1-.1*Math.min(1,F.calm/6);}
- camera.fov=fv;camera.updateProjectionMatrix();
+ camera.fov=58;camera.updateProjectionMatrix();
  camera.position.set(cx+uz*(dist+drift)+ux*.25,cy+1.05,cz-ux*(dist+drift)+uz*.25);
  camera.lookAt(cx-ux*.6,cy+(camera.aspect<1?-.4:.85),cz-uz*.6);camera.rotation.z=0;
  return true;
@@ -16393,7 +16100,7 @@ function saquePose(T){
 function bracoTrajeto(T,volta,dt){
  var a=T.cvBra;if(a&&a.modelo!==T.m)a=T.cvBra=null;
  if(volta){if(a&&a.salvo){for(var i=0;i<2;i++){var c=a.br[i];c.u.quaternion.copy(c.ou);c.e.quaternion.copy(c.oe);c.h.quaternion.copy(c.oh);}a.salvo=false;}return;}
- var bordaRec=1;if(P.crouch&&CB.reload>0)bordaRec=1-sm(clamp(Math.min(CB.reload,CB.rdur-CB.reload)/.24,0,1));if(!CB.drawn||S.inCar||CB.reload>0&&(!P.crouch||bordaRec<.001)||CARRY.ser==='dog'){if(a)a.tem=false;return;}
+ if(!CB.drawn||S.inCar||CB.reload>0||CARRY.ser==='dog'){if(a)a.tem=false;return;}
  if(!a){var b=n=>T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n),Q=()=>new THREE.Quaternion(),V=()=>new THREE.Vector3();
  a=T.cvBra={modelo:T.m,br:['Left','Right'].map(x=>({u:b(x+'Arm'),e:b(x+'ForeArm'),h:b(x+'Hand'),ou:Q(),oe:Q(),oh:Q(),anH:V(),anQ:Q(),gU:Q(),gE:Q()})),s:V(),e:V(),h:V(),dir:V(),pole:V(),out:V(),fwd:V(),E:V(),H:V(),q:Q(),w:Q(),hw:Q(),par:Q(),v0:V(),v1:V(),local:V(),rold:Q(),ant:V(),base:Q(),inv:Q(),mat:new THREE.Matrix4()};a.ok=a.br.every(c=>c.u&&c.e&&c.h);}
  if(!a.ok)return;
@@ -16422,7 +16129,7 @@ function bracoTrajeto(T,volta,dt){
  var espaco=(T.folga||0)*(P.crouch?.085:.052);
   if(espaco){a.E.addScaledVector(a.out,sg*espaco);a.E.addScaledVector(a.fwd,espaco*.8);}
   /* corrida-fechada: aproxima o cotovelo 7,5% do meio dos ombros sem encurtar o braço. */if(sprint){a.E.addScaledVector(a.out,(meioX-a.out.dot(a.E))*.075*sprint);var ex=a.E.x-a.s.x,ez=a.E.z-a.s.z,ey=ul*ul-ex*ex-ez*ez;if(ey>0)a.E.y=a.s.y+Math.sign(a.E.y-a.s.y)*Math.sqrt(ey);}bracoOrientaEixo(a,c.u,c.e,a.E,c.gU,dt);bracoOrientaEixo(a,c.e,c.h,a.H,c.gE,dt);c.h.parent.getWorldQuaternion(a.par);c.h.quaternion.copy(a.par.invert().multiply(a.hw));if(corrida>0){c.u.quaternion.slerp(c.ou,corrida);c.e.quaternion.slerp(c.oe,corrida);c.h.quaternion.slerp(c.oh,corrida);}c.h.updateMatrixWorld(true);}
- if(bordaRec<1){for(var j=0;j<a.br.length;j++){var c=a.br[j];c.u.quaternion.slerp(c.ou,1-bordaRec);c.e.quaternion.slerp(c.oe,1-bordaRec);c.h.quaternion.slerp(c.oh,1-bordaRec);}T.m.updateMatrixWorld(true);}a.salvo=true;a.tem=true;}
+ a.salvo=true;a.tem=true;}
 var TP={on:true,pt:0,nk:[0,0],om:[0,0],cab:[.07,.105,.074,.07,.09,.34,.2],bn:[.11,.19],bg:[.025,.047,.0075],gp:[0,.1,.035],gr:[1.57,0,1.57],bc:0x1c1916,bf:0x15110d,oi:1,ip:1,be:[.8,.75],sd:.45,by:.8,bs:.156,bp:[-.005,.19,.03],br:[0.770,0.404,0.204],m:null,mx:null,a:{},cur:'',q:0};
 /* CEO 13/11 (mu): identificacao de tecido na superficie do colete.
    ponytail: marcas recortadas nos triangulos da superficie, sem ajuste por quadro, sem ajuste por quadro. */
@@ -16492,9 +16199,6 @@ function heroiPadraoPeca(T,m,c,bone,boina,pt){
  for(var i=0;i<p.count;i++)bb.expandByPoint(v.fromBufferAttribute(p,i).applyMatrix4(aligned));
  var center=bb.getCenter(new THREE.Vector3()),target=bp.clone();target.y+=(boina?.19:-.10)/k;target.z+=(boina?.005:.015)/k;
  /* A faixa da boina assenta no mesmo ponto aprovado, agora nivelada. */
- if(boina){/* boina-olho-esquerdo: inclina no bind pose, sem depender do quadro em que a malha carrega. */
-  q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-.27));target.y-=.008/k;
- }
  var offset=target.clone().sub(center),world=new THREE.Matrix4().compose(offset,q,c.scale),local=new THREE.Matrix4().multiplyMatrices(inv,world);
  local.decompose(c.position,c.quaternion,v);bone.add(c);
  if(!boina){
@@ -16511,7 +16215,7 @@ function heroiPadraoPeca(T,m,c,bone,boina,pt){
  // O equipamento chega depois da farda; os decalques recebem a mesma sombra do corpo.
  c.traverse(function(o){if(o.isMesh)o.receiveShadow=sm.receiveShadow;});
 }
-/* agachado 4 estados (CEO 16/11 qq1 qq2) */var AG={c:{},q:[new THREE.Quaternion(),new THREE.Quaternion(),new THREE.Quaternion()],k:[.035,.018,.012],pb:.6,v:1.03,ph:0,u:null,mu:null,mi:1,ml:[.02,.04,.33,.25,.65,.75,.15],mb:[.02,.04,.33,-.1,1.3,.2,0],pw:.88,pe:[.02,.04,.33,.25,.65,.75,.15],tr:[.05,.06,.04,.13,.025,.92,.06,.085,.3,7],vv:[],fw:new THREE.Vector3()};function agPose(T,nome,t,w){var A=AG,c=A.c[nome],Q=A.q,i,v;if(w<.001)return;if(c===undefined){c=A.c[nome]=null;var C=T.a[nome];if(C){c=A.c[nome]={d:C.getClip().duration||1,f:[]};C.getClip().tracks.forEach(function(k){var m=k.name.match(/^(.*)\.quaternion$/),b;if(!m)return;b=T.m.getObjectByName(m[1]);if(!b)return;var it=k.createInterpolant();if(b===A.b[0])c.h=it;else if(b===A.b[1])c.s=it;else if(!/(Hips|Leg|Foot|Toe)/.test(b.name))c.f.push([b,it]);});}}if(!c||!c.h||!c.s)return;t=((t%c.d)+c.d)%c.d;T.m.updateMatrixWorld(true);A.b[0].parent.getWorldQuaternion(Q[0]);v=c.h.evaluate(t);Q[2].set(v[0],v[1],v[2],v[3]);Q[0].multiply(Q[2]);v=c.s.evaluate(t);Q[2].set(v[0],v[1],v[2],v[3]);Q[0].multiply(Q[2]);A.b[0].getWorldQuaternion(Q[1]);Q[1].invert().multiply(Q[0]);A.b[1].quaternion.slerp(Q[1],w);for(i=0;i<c.f.length;i++){v=c.f[i][1].evaluate(t);Q[2].set(v[0],v[1],v[2],v[3]);c.f[i][0].quaternion.slerp(Q[2],w);}}/* agachado 3 e 4 (CEO 16/11: 'a arma entra pra dentro do corpo'): cotovelos para fora do colete */function agMira(T,fw,cy,w,pm){var A=AG,V=A.vv,B=MM.b,i,F,ul,fl,lE,len,al,h,S,L,H,D,P,E,G;if(!B){maoMira(T,fw,cy,0);B=MM.b;if(!B)return;}if(!V.length){for(i=0;i<12;i++)V.push(new THREE.Vector3());A.qa=new THREE.Quaternion();A.qb=new THREE.Quaternion();}V[0].set(Math.cos(cy),0,-Math.sin(cy));S=B[0].getWorldPosition(V[1]);ul=S.distanceTo(B[1].getWorldPosition(V[2]));fl=V[2].distanceTo(B[2].getWorldPosition(V[3]));L=B[3].getWorldPosition(V[4]);lE=L.distanceTo(B[4].getWorldPosition(V[5]))+V[5].distanceTo(B[5].getWorldPosition(V[6]));V[7].copy(S).add(L).multiplyScalar(.5).addScaledVector(V[0],pm[0]);V[7].y-=pm[1];H=V[8];D=V[9].copy(fw).multiplyScalar(Math.cos(pm[2])).addScaledVector(V[0],-Math.sin(pm[2]));D.y+=Math.sin(pm[3]);D.normalize();E=V[11];for(F=.2;F<.9;F+=.01){H.copy(V[7]).addScaledVector(fw,F);E.copy(H).addScaledVector(D,-fl);if(E.distanceTo(S)>=ul*.995)break;}for(G=F;G>.15;G-=.01){H.copy(V[7]).addScaledVector(fw,G);V[6].copy(H).addScaledVector(V[0],-MM.ap[0]);V[6].y-=MM.ap[1];if(V[6].distanceTo(L)<.97*lE)break;}if(G<F-.005){V[10].copy(D).negate();D=V[9].copy(H).sub(S);len=Math.min(D.length(),ul+fl-.0001);D.normalize();al=(ul*ul-fl*fl+len*len)/(2*len);h=Math.sqrt(Math.max(0,ul*ul-al*al));P=V[10];P.addScaledVector(D,-P.dot(D)).normalize();E.copy(S).addScaledVector(D,al).addScaledVector(P,h);}mmTurn(B[0],B[1],E,w);mmTurn(B[1],B[2],H,w);B[2].quaternion.slerp(MM.q0,w);B[1].getWorldPosition(V[2]);B[2].getWorldPosition(V[3]);V[3].sub(V[2]).normalize();A.qa.setFromUnitVectors(V[3],fw);B[1].getWorldQuaternion(A.qb);A.qa.multiply(A.qb);A.qb.invert().multiply(A.qa);B[2].quaternion.slerp(A.qb,w*A.pw);B[2].updateMatrixWorld(true);var c=pm.length>6?pm.slice(4):MM.cot;B[2].getWorldPosition(H).addScaledVector(V[0],-MM.ap[0]);H.y-=MM.ap[1];S=B[3].getWorldPosition(V[1]);ul=S.distanceTo(B[4].getWorldPosition(V[2]));fl=V[2].distanceTo(B[5].getWorldPosition(V[3]));D=V[9].copy(H).sub(S);len=Math.min(D.length(),ul+fl-.0001);D.normalize();al=(ul*ul-fl*fl+len*len)/(2*len);h=Math.sqrt(Math.max(0,ul*ul-al*al));P=V[10].copy(V[0]).multiplyScalar(-c[0]).addScaledVector(fw,-c[2]);P.y-=c[1];P.addScaledVector(D,-P.dot(D)).normalize();E=V[11].copy(S).addScaledVector(D,al).addScaledVector(P,h);mmTurn(B[3],B[4],E,w);mmTurn(B[4],B[5],H,w);B[5].quaternion.slerp(MM.q0,w);B[5].updateMatrixWorld(true);}/* posicao de torre (CEO 17/11): joelho direito no chao, pe esquerdo plano a frente, quadril alto, tronco ereto */function agTorre(T,dt,sp){var A=AG,R=A.tr,i;if(!R)return;A.tw=(A.tw||0)+((sp<R[8]?1:0)-(A.tw||0))*Math.min(1,dt*R[9]);var w=A.tw;if(w<.002)return;if(!A.tb){A.tb=['RightUpLeg','RightLeg','RightFoot','RightToeBase','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});if(A.tb.some(function(x){return !x;})){A.tr=0;return;}A.tv=[];for(i=0;i<12;i++)A.tv.push(new THREE.Vector3());var I=T.a.IdleAlpha||T.a.Idle_3,k=null;if(I)I.getClip().tracks.forEach(function(t){if(/Hips\.quaternion$/.test(t.name))k=t.values;});A.hq=k?new THREE.Quaternion(k[0],k[1],k[2],k[3]):null;}while(MM.v.length<14)MM.v.push(new THREE.Vector3());while(MM.q.length<3)MM.q.push(new THREE.Quaternion());var B=A.tb,V=A.tv,H=A.b[0],ry=T.m.rotation.y,gy=P.y,fw=V[0].set(Math.sin(ry),0,Math.cos(ry)),sd=V[1].set(fw.z,0,-fw.x),U,K,An,To,th,sh,fl,d,len,al,h;if(A.hq)H.quaternion.slerp(A.hq,w);T.m.updateMatrixWorld(true);U=B[0].getWorldPosition(V[2]);th=U.distanceTo(B[1].getWorldPosition(V[3]));sh=V[3].distanceTo(B[2].getWorldPosition(V[4]));fl=V[4].distanceTo(B[3].getWorldPosition(V[5]));h=Math.hypot(R[1],R[2]);d=gy+R[0]+Math.sqrt(Math.max(0,th*th-h*h))-U.y;H.getWorldPosition(V[6]);V[6].y+=d*w;H.parent.worldToLocal(V[6]);H.position.copy(V[6]);T.m.updateMatrixWorld(true);U=B[0].getWorldPosition(V[2]);K=V[7].copy(U).addScaledVector(fw,R[1]).addScaledVector(sd,-R[2]);K.y=gy+R[0];An=V[8].copy(K);An.y=gy+R[3];An.addScaledVector(fw,-Math.sqrt(Math.max(0,sh*sh-(R[3]-R[0])*(R[3]-R[0]))));To=V[9].copy(An);To.y=gy+R[4];To.addScaledVector(fw,-Math.sqrt(Math.max(0,fl*fl-(R[3]-R[4])*(R[3]-R[4]))));mmTurn(B[0],B[1],K,w);mmTurn(B[1],B[2],An,w);mmTurn(B[2],B[3],To,w);U=B[4].getWorldPosition(V[2]);th=U.distanceTo(B[5].getWorldPosition(V[3]));sh=V[3].distanceTo(B[6].getWorldPosition(V[4]));fl=V[4].distanceTo(B[7].getWorldPosition(V[5]));An=V[8].copy(U).addScaledVector(fw,R[5]*th).addScaledVector(sd,R[6]);An.y=gy+R[7];d=V[10].copy(An).sub(U);len=Math.min(d.length(),th+sh-.0001);d.normalize();al=(th*th-sh*sh+len*len)/(2*len);h=Math.sqrt(Math.max(0,th*th-al*al));K=V[11].copy(fw);K.y+=.3;K.addScaledVector(d,-K.dot(d)).normalize();K.multiplyScalar(h).add(U).addScaledVector(d,al);To=V[9].copy(An);To.y=gy+R[4];To.addScaledVector(fw,Math.sqrt(Math.max(0,fl*fl-(R[7]-R[4])*(R[7]-R[4]))));mmTurn(B[4],B[5],K,w);mmTurn(B[5],B[6],An,w);mmTurn(B[6],B[7],To,w);T.m.updateMatrixWorld(true);d=Math.min(B[2].getWorldPosition(V[2]).y,B[3].getWorldPosition(V[3]).y,B[6].getWorldPosition(V[4]).y,B[7].getWorldPosition(V[5]).y)-gy;if(d<.02){H.getWorldPosition(V[6]);V[6].y+=.02-d;H.parent.worldToLocal(V[6]);H.position.copy(V[6]);T.m.updateMatrixWorld(true);}}function agTick(T,dt){if(!P.crouch||T.cur!=='Cautious_Crouch_Walk_Forward')return;var A=AG,g=function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);},d=CB&&CB.drawn?1:0,w=d*(T.aim||0),w3=0/* sem mirar: sem pronto baixo */,sp=Math.hypot(P.vx||0,P.vz||0),k,wk,ca=T.a.Cautious_Crouch_Walk_Forward;if(!A.b)A.b=['Hips','Spine','Spine1','Spine2','Neck'].map(g);if(A.b.some(function(x){return !x;}))return;agTorre(T,dt,sp);agPose(T,'Cowboy_Quick_Draw_Shooting',3.2,w);wk=Math.min(1,sp/.6);agPose(T,'IdleAlpha',S.time,(1-w)*(1-wk));if(wk>0&&ca&&T.a.Walking)agPose(T,'Walking',(ca.time/(ca.getClip().duration||1)+A.ph)*T.a.Walking.getClip().duration,(1-w)*wk);k=d*(1-w)*Math.max(0,1-sp/.3);if(k>.001){A.b[3].rotateX(Math.sin(S.time*2.4)*A.k[0]*k);A.b[1].rotateZ(Math.sin(S.time*1.1)*A.k[1]*k);A.b[4].rotateX(-Math.sin(S.time*2.4)*A.k[2]*k);}A.b[1].rotateX(.32+.10*wk);T.m.updateMatrixWorld(true);if(w3>.001&&typeof maoMira==='function'){var ry=T.m.rotation.y;A.fw.set(Math.sin(ry)*Math.cos(A.pb),-Math.sin(A.pb),Math.cos(ry)*Math.cos(A.pb));var s0=MM.u;if(A.u)MM.u=A.u;if(A.mi)agMira(T,A.fw,ry+Math.PI,w3,A.mb);else maoMira(T,A.fw,ry+Math.PI,w3);MM.u=s0;}if(CB.reload>0){var rec=sp>.4?'Slow_Walk_Reload':'Standing_Reload',ac=T.a[rec];if(ac){var fase=clamp(1-CB.reload/CB.rdur,0,1),peso=sm(Math.min(1,fase*7,(1-fase)*7));agPose(T,rec,fase*ac.getClip().duration,peso);}}}/* Desliza a câmera pelo lado livre da pilha quando a lente encosta; a quina não muda o recuo de repente. */
+/* agachado 4 estados (CEO 16/11 qq1 qq2) */var AG={c:{},q:[new THREE.Quaternion(),new THREE.Quaternion(),new THREE.Quaternion()],k:[.035,.018,.012],pb:.6,v:1.03,ph:0,u:null,mu:null,mi:1,ml:[.02,.04,.33,.25,.65,.75,.15],mb:[.02,.04,.33,-.1,1.3,.2,0],pw:.88,pe:[.02,.04,.33,.25,.65,.75,.15],vv:[],fw:new THREE.Vector3()};function agPose(T,nome,t,w){var A=AG,c=A.c[nome],Q=A.q,i,v;if(w<.001)return;if(c===undefined){c=A.c[nome]=null;var C=T.a[nome];if(C){c=A.c[nome]={d:C.getClip().duration||1,f:[]};C.getClip().tracks.forEach(function(k){var m=k.name.match(/^(.*)\.quaternion$/),b;if(!m)return;b=T.m.getObjectByName(m[1]);if(!b)return;var it=k.createInterpolant();if(b===A.b[0])c.h=it;else if(b===A.b[1])c.s=it;else if(!/(Hips|Leg|Foot|Toe)/.test(b.name))c.f.push([b,it]);});}}if(!c||!c.h||!c.s)return;t=((t%c.d)+c.d)%c.d;T.m.updateMatrixWorld(true);A.b[0].parent.getWorldQuaternion(Q[0]);v=c.h.evaluate(t);Q[2].set(v[0],v[1],v[2],v[3]);Q[0].multiply(Q[2]);v=c.s.evaluate(t);Q[2].set(v[0],v[1],v[2],v[3]);Q[0].multiply(Q[2]);A.b[0].getWorldQuaternion(Q[1]);Q[1].invert().multiply(Q[0]);A.b[1].quaternion.slerp(Q[1],w);for(i=0;i<c.f.length;i++){v=c.f[i][1].evaluate(t);Q[2].set(v[0],v[1],v[2],v[3]);c.f[i][0].quaternion.slerp(Q[2],w);}}/* agachado 3 e 4 (CEO 16/11: 'a arma entra pra dentro do corpo'): cotovelos para fora do colete */function agMira(T,fw,cy,w,pm){var A=AG,V=A.vv,B=MM.b,i,F,ul,fl,lE,len,al,h,S,L,H,D,P,E,G;if(!B){maoMira(T,fw,cy,0);B=MM.b;if(!B)return;}if(!V.length){for(i=0;i<12;i++)V.push(new THREE.Vector3());A.qa=new THREE.Quaternion();A.qb=new THREE.Quaternion();}V[0].set(Math.cos(cy),0,-Math.sin(cy));S=B[0].getWorldPosition(V[1]);ul=S.distanceTo(B[1].getWorldPosition(V[2]));fl=V[2].distanceTo(B[2].getWorldPosition(V[3]));L=B[3].getWorldPosition(V[4]);lE=L.distanceTo(B[4].getWorldPosition(V[5]))+V[5].distanceTo(B[5].getWorldPosition(V[6]));V[7].copy(S).add(L).multiplyScalar(.5).addScaledVector(V[0],pm[0]);V[7].y-=pm[1];H=V[8];D=V[9].copy(fw).multiplyScalar(Math.cos(pm[2])).addScaledVector(V[0],-Math.sin(pm[2]));D.y+=Math.sin(pm[3]);D.normalize();E=V[11];for(F=.2;F<.9;F+=.01){H.copy(V[7]).addScaledVector(fw,F);E.copy(H).addScaledVector(D,-fl);if(E.distanceTo(S)>=ul*.995)break;}for(G=F;G>.15;G-=.01){H.copy(V[7]).addScaledVector(fw,G);V[6].copy(H).addScaledVector(V[0],-MM.ap[0]);V[6].y-=MM.ap[1];if(V[6].distanceTo(L)<.97*lE)break;}if(G<F-.005){V[10].copy(D).negate();D=V[9].copy(H).sub(S);len=Math.min(D.length(),ul+fl-.0001);D.normalize();al=(ul*ul-fl*fl+len*len)/(2*len);h=Math.sqrt(Math.max(0,ul*ul-al*al));P=V[10];P.addScaledVector(D,-P.dot(D)).normalize();E.copy(S).addScaledVector(D,al).addScaledVector(P,h);}mmTurn(B[0],B[1],E,w);mmTurn(B[1],B[2],H,w);B[2].quaternion.slerp(MM.q0,w);B[1].getWorldPosition(V[2]);B[2].getWorldPosition(V[3]);V[3].sub(V[2]).normalize();A.qa.setFromUnitVectors(V[3],fw);B[1].getWorldQuaternion(A.qb);A.qa.multiply(A.qb);A.qb.invert().multiply(A.qa);B[2].quaternion.slerp(A.qb,w*A.pw);B[2].updateMatrixWorld(true);var c=pm.length>6?pm.slice(4):MM.cot;B[2].getWorldPosition(H).addScaledVector(V[0],-MM.ap[0]);H.y-=MM.ap[1];S=B[3].getWorldPosition(V[1]);ul=S.distanceTo(B[4].getWorldPosition(V[2]));fl=V[2].distanceTo(B[5].getWorldPosition(V[3]));D=V[9].copy(H).sub(S);len=Math.min(D.length(),ul+fl-.0001);D.normalize();al=(ul*ul-fl*fl+len*len)/(2*len);h=Math.sqrt(Math.max(0,ul*ul-al*al));P=V[10].copy(V[0]).multiplyScalar(-c[0]).addScaledVector(fw,-c[2]);P.y-=c[1];P.addScaledVector(D,-P.dot(D)).normalize();E=V[11].copy(S).addScaledVector(D,al).addScaledVector(P,h);mmTurn(B[3],B[4],E,w);mmTurn(B[4],B[5],H,w);B[5].quaternion.slerp(MM.q0,w);B[5].updateMatrixWorld(true);}function agTick(T,dt){if(!P.crouch||T.cur!=='Cautious_Crouch_Walk_Forward')return;var A=AG,g=function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);},d=CB&&CB.drawn?1:0,w=d*(T.aim||0),w3=d-w,sp=Math.hypot(P.vx||0,P.vz||0),k,wk,ca=T.a.Cautious_Crouch_Walk_Forward;if(!A.b)A.b=['Hips','Spine','Spine1','Spine2','Neck'].map(g);if(A.b.some(function(x){return !x;}))return;agPose(T,'Cowboy_Quick_Draw_Shooting',3.2,d);wk=Math.min(1,sp/.6);agPose(T,'IdleAlpha',S.time,(1-d)*(1-wk));if(wk>0&&ca&&T.a.Walking)agPose(T,'Walking',(ca.time/(ca.getClip().duration||1)+A.ph)*T.a.Walking.getClip().duration,(1-d)*wk);k=d*(1-w)*Math.max(0,1-sp/.3);if(k>.001){A.b[3].rotateX(Math.sin(S.time*2.4)*A.k[0]*k);A.b[1].rotateZ(Math.sin(S.time*1.1)*A.k[1]*k);A.b[4].rotateX(-Math.sin(S.time*2.4)*A.k[2]*k);}A.b[1].rotateX(.32+.10*wk);T.m.updateMatrixWorld(true);if(w3>.001&&typeof maoMira==='function'){var ry=T.m.rotation.y;A.fw.set(Math.sin(ry)*Math.cos(A.pb),-Math.sin(A.pb),Math.cos(ry)*Math.cos(A.pb));var s0=MM.u;if(A.u)MM.u=A.u;if(A.mi)agMira(T,A.fw,ry+Math.PI,w3,A.mb);else maoMira(T,A.fw,ry+Math.PI,w3);MM.u=s0;}if(CB.reload>0){var rec=sp>.4?'Slow_Walk_Reload':'Standing_Reload',ac=T.a[rec];if(ac){var fase=clamp(1-CB.reload/CB.rdur,0,1),peso=sm(Math.min(1,fase*7,(1-fase)*7));agPose(T,rec,fase*ac.getClip().duration,peso);}}}/* Desliza a câmera pelo lado livre da pilha quando a lente encosta; a quina não muda o recuo de repente. */
 function tpOmbroPilha(T,cy,d,sd,dy,dt){
  var olho=camera.position,sn=Math.sin(cy),cs=Math.cos(cy),v=T.ombroPilha||(T.ombroPilha=new THREE.Vector3());
  for(var i=0;i<GP.degraus.length;i++){
@@ -16642,7 +16346,7 @@ c.traverse(function(o){
   g.setIndex(keep);
   g.userData.boinaSemFitaAntiga=n;
 });
-m.updateMatrixWorld(true);var pp=m.worldToLocal(bh.getWorldPosition(new THREE.Vector3()));c.traverse(function(o){if(o.isMesh){o.castShadow=true;o.frustumCulled=false;/* CEO 12/11 (gj): boina na cor da capa (cinza-marrom, fosca, sem brasao a vista) e um pouco mais baixa */o.material.map=null;o.material.metalness=0;o.material.roughness=1;o.material.color.set(T.bc);o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;}});/* CEO 12/11 (id) 'pedaco da cabeca faltando, nao preenche a boina': de baixo dava para ver atraves da boina. Forro escuro cor de cabelo por dentro (mesma forma, 10% menor) fecha o vao */(function(){var fo=[];c.traverse(function(o){if(o.isMesh)fo.push(o);});fo.forEach(function(o){var f=new THREE.Mesh(o.geometry,new THREE.MeshStandardMaterial({color:T.bf,roughness:1,metalness:0,side:THREE.DoubleSide}));f.position.copy(o.position);f.quaternion.copy(o.quaternion);f.scale.copy(o.scale).multiplyScalar(.9);f.frustumCulled=false;o.parent.add(f);/* CEO 12/11 (ig) 'buraco da cabeca': por tras dava para ver o ceu no vao entre o cabelo e a boina. Enchimento cor de cabelo dentro da boina: elipsoide alinhado ao disco da boina (eixos tirados da propria malha), 80% do raio e 75% da espessura */var p=o.geometry.attributes.position,n=p.count,cx=0,cy=0,cz=0,i,A=[0,0,0,0,0,0];for(i=0;i<n;i++){cx+=p.getX(i);cy+=p.getY(i);cz+=p.getZ(i);}cx/=n;cy/=n;cz/=n;for(i=0;i<n;i++){var x=p.getX(i)-cx,y=p.getY(i)-cy,z=p.getZ(i)-cz;A[0]+=x*x;A[1]+=x*y;A[2]+=x*z;A[3]+=y*y;A[4]+=y*z;A[5]+=z*z;}var pw=function(ex){var v=new THREE.Vector3(.5,.7,.3),k,t;for(k=0;k<60;k++){t=new THREE.Vector3(A[0]*v.x+A[1]*v.y+A[2]*v.z,A[1]*v.x+A[3]*v.y+A[4]*v.z,A[2]*v.x+A[4]*v.y+A[5]*v.z);if(ex)t.addScaledVector(ex,-t.dot(ex));v=t.normalize();}return v;},e1=pw(null),e2=pw(e1),e3=new THREE.Vector3().crossVectors(e1,e2).normalize(),r=[0,0,0],w=new THREE.Vector3();for(i=0;i<n;i++){w.set(p.getX(i)-cx,p.getY(i)-cy,p.getZ(i)-cz);r[0]=Math.max(r[0],Math.abs(w.dot(e1)));r[1]=Math.max(r[1],Math.abs(w.dot(e2)));r[2]=Math.max(r[2],Math.abs(w.dot(e3)));}var en=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),f.material);en.position.set(cx,cy,cz);en.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(e1,e2,e3));en.scale.set(r[0]*T.be[0],r[1]*T.be[0],r[2]*T.be[1]);en.frustumCulled=false;o.add(en);T.ench=en;});})();c.scale.setScalar(T.bs/kk);c.scale.y*=T.by;c.scale.z*=T.by;/* by aperta altura e fundo da boina (gt: bem ajustada na cabeca) */c.rotation.set(T.br[0],T.br[1],T.br[2]);c.position.set(pp.x+T.bp[0]/kk,pp.y+T.bp[1]/kk,pp.z+T.bp[2]/kk);m.add(c);m.updateMatrixWorld(true);bh.attach(c);heroiPadraoPeca(T,m,c,bh,true);T.boina=c;boinaCabecaAssenta(T);});T.m=m;/* CEO 12/11 (ii) 'deu um stutter e ele popou fora da viatura': a 1a vez que o heroi aparecia a placa preparava malha e textura na hora. Desenha 1 quadro minusculo com ele ja na carga */try{m.traverse(function(o){o.frustumCulled=false;});var pv=m.visible,pr=renderer.getRenderTarget(),pw=new THREE.WebGLRenderTarget(8,8);m.visible=true;renderer.setRenderTarget(pw);renderer.render(scene,camera);renderer.setRenderTarget(pr);pw.dispose();m.visible=pv;}catch(e){}})(hp.gl);}return;}heroiRostoIni(T);var ok=S.phase==='play'&&!S.inCar&&!cenaOn()&&!(PROVA_ACAO&&(S.step==='topo34'||S.soco&&S.soco.luta));/* CEO 16/11 (ot): na luta sempre 1a pessoa */T.k=ok?(T.k||0)+((T.on?1:0)-(T.k||0))*Math.min(1,dt*9):0;var on=T.k>.3;/* CEO 12/11 (fx): troca 1a/3a sem corte: T.k desliza de 0 a 1 e a camera sai do olho ate o ombro *//* mira tambem em 3a pessoa (CEO 12/11: nada de misturar com 1a) */T.m.visible=on;VM.scale.setScalar(on?1e-4:1);/* o jogo religa VM.visible todo quadro ao sacar: encolhe em vez de esconder */if(!on){if(T.vv){VM.visible=true;T.vv=0;}if(T.vf){FIST.visible=true;T.vf=0;}return;}if(VM.visible){VM.visible=false;T.vv=1;}if(FIST.visible){FIST.visible=false;T.vf=1;}var sp=Math.hypot(P.vx||0,P.vz||0),/* CEO 16/11 (po) 'correndo pra tras, parecendo o Michael Jackson': arma na mao e andando CONTRA a frente do corpo = passo para tras, nunca a corrida de frente *//* CEO 16/11 (pw): arma na mao SEM mirar = anda e corre igual sem arma; MIRANDO ou atirando = pronto alto */alturaAr=P.alt-supportH(P.x,P.z),pouso=P.pouso&&T.a[P.pouso]&&alturaAr<=.025&&!P.vy?P.pouso:null,livre=!pouso&&CB&&CB.drawn&&CB.item===0&&!CB.reload&&!P.mt&&!P.arc&&!(P.vaultT>0)&&Math.abs(P.vy||0)<.02&&!cenaOn()&&!S.finalCena&&CARRY.ser!=='dog',pronto=livre&&!P.crouch&&sp<2.65,passo=sp>(pronto?.12:.4),mira=!!CB&&CB.drawn&&(ads()||CB.aimHold||CB.aimT>0||CB.kick>.05),bk=sp>.4&&mira&&(P.vx*Math.sin(T.m.rotation.y)+P.vz*Math.cos(T.m.rotation.y))/sp<-.5,nm=P.preSalto&&T.a.SaltoDePe?'SaltoDePe':GP.trans&&GP.trans.janela&&T.a.Cautious_Crouch_Walk_Forward?'Cautious_Crouch_Walk_Forward':P.mt?(P.mt.b&&P.mt.coroa>.56?'IdleAlpha':P.mt.b&&P.mt.h-P.mt.y0<1.15&&T.a.Cautious_Crouch_Walk_Forward?(P.mt.k<.53?'Cautious_Crouch_Walk_Forward':'Jump_Over_Obstacle'):P.mt.b&&T.a.ApoioNaQuina?'ApoioNaQuina':'climbing_up_wall'):(P.vaultT||0)>0?'Jump_Over_Obstacle':(P.arc||alturaAr>.025||P.vy>1||P.vy< -2.5)?(P.saltoCorrida?'Run_and_Jump':P.saltoCaminhada?'SaltoDePe':'Jumping_Down'):pouso?pouso:/* P.alt e altura de laje, nao de pulo: usa so a velocidade vertical */CB&&CB.reload>0&&!P.crouch?(sp>.4?'Slow_Walk_Reload':'Standing_Reload'):CB&&CB.drawn&&!passo&&!P.crouch&&(pronto||CB.kick>0||CB.aimT>0||CB.aimHold)?'Cowboy_Quick_Draw_Shooting':P.crouch?'Cautious_Crouch_Walk_Forward':pronto&&!mira&&passo?'Walking':(mira||pronto)&&passo?(bk&&T.a.Walk_Backward_with_Gun?'Walk_Backward_with_Gun':'Run_and_Shoot'):sp>5.2?'RunFast':sp>3?'Running':sp>.4?'Walking':alturaAr>.01||Math.abs(P.vy||0)>.01||typeof CARRY!=='undefined'&&CARRY.ser==='dog'?'Idle_3':/* CEO 17/11: armado sem mirar = parado normal com a arma na mao (sem pronto baixo) */'IdleAlpha';/* Combat_Stance era guarda de boxe: com arma fica Idle_3 (arma baixa) parado */if(nm!==T.cur&&T.a[nm]){var o=T.a[T.cur];T.a[nm].reset().setEffectiveWeight(1).fadeIn(nm==='IdleAlpha'||T.cur==='IdleAlpha'&&(nm==='Walking'||nm==='Running'||nm==='RunFast')?.25:.16).play();if(nm==='Run_and_Jump'){/* CEO 12/11 (gs): o clipe tem 2,3 s (corrida, salto, pouso); o pulo do jogo dura ~0,7 s: entra ja na decolagem e nao repete */T.a[nm].time=.7;T.a[nm].setLoop(THREE.LoopOnce,1);T.a[nm].clampWhenFinished=true;}if(o)o.fadeOut(nm==='IdleAlpha'||T.cur==='IdleAlpha'&&(nm==='Walking'||nm==='Running'||nm==='RunFast')?.25:.16);T.cur=nm;}if(T.a[T.cur])T.a[T.cur].timeScale=(alturaAr>.06&&/^(Walking|Running|RunFast|Idle_3)$/.test(T.cur)?.3:1)*(T.cur==='Run_and_Shoot'||T.cur==='Walk_Backward_with_Gun'?(bk&&T.cur==='Run_and_Shoot'?-1:1)*clamp(sp/MIRA_ANDA.clipe,.5,1.3):T.cur==='Walking'?(bk?-1:1)*clamp(sp/1.5,.75,2):/* CEO 12/11 (ha): andar vale ate 3 m/s (antes o trote entrava em 2,2), passo mais firme */T.cur==='Running'?clamp(sp/3.6,.85,1.3):T.cur==='RunFast'?clamp(sp/6,.85,1.25):/* CEO 12/11 (fx): passo no ritmo da velocidade real (andar 3.5, correr 6): antes a corrida tocava a 78% (camera lenta) e o RunFast nunca entrava */P.crouch?(sp>.3?(AG.v?clamp(sp/AG.v,.6,P.sprintBaixo?1.53:1.8):1):0):1);if(CB.reload>0&&(T.cur==='Standing_Reload'||T.cur==='Slow_Walk_Reload')){var rec=T.a[T.cur];rec.time=clamp(1-CB.reload/CB.rdur,0,.9999)*rec.getClip().duration;rec.timeScale=0;}if(GP.trans&&GP.trans.janela&&T.a[T.cur]){/* ponytail: reaproveita o agachamento, sem outro asset ou escala artificial do corpo. */T.a[T.cur].time=GP.trans.t*(T.a[T.cur].getClip().duration||1);T.a[T.cur].timeScale=0;}tpSaltoFase(T,pouso,alturaAr);if(T.cur==='Cowboy_Quick_Draw_Shooting'&&T.a[T.cur]){/* tiro firme: pose de duas maos congelada, sem reinicio por tiro */T.a[T.cur].time=3.2;T.a[T.cur].timeScale=0;}if(ARMA.v&&T.gunV!==ARMA.v&&(!T.gun||!T.sq)){var hb=T.m.getObjectByName('mixamorigRightHand')||T.m.getObjectByName('mixamorig:RightHand');if(hb){/* CEO 12/11 (fm): a MESMA arma da 1a pessoa, na mao */T.gunV=ARMA.v;if(T.gun)T.gun.parent.remove(T.gun);if(T.coldre)T.coldre.parent.remove(T.coldre);/* CEO 16/11 (retangulo): centro e tamanho medidos na GUN inteira como antes (encaixe da mao igual), mas so a arma visivel vai para a mao */var r=GUN.clone(true);r.children.filter(function(o){return o.userData.armaNova;}).forEach(function(o){r.remove(o);});r.position.set(0,0,0);r.rotation.set(0,0,0);r.scale.set(1,1,1);r.updateMatrixWorld(true);var gb=new THREE.Box3().setFromObject(r),gs=new THREE.Vector3(),gc=new THREE.Vector3();gb.getSize(gs);gb.getCenter(gc);var ks=.2/Math.max(.01,gs.x,gs.y,gs.z)/(T.m.scale.x||1),escalaEncaixe=ks*hb.getWorldScale(new THREE.Vector3()).z,g=armaModelo('tp',escalaEncaixe),gw=new THREE.Group(),mf=MF.clone();mf.visible=false;if(g.userData.armaNova){var mft=ARMA.fit.tp;mf.position.set(mft[0][0],mft[0][1]+.073/escalaEncaixe,mft[0][2]-.177/escalaEncaixe-.05);}g.add(mf);T.gmf=mf;armaLimpa(g);g.position.sub(gc);gw.add(g);gw.scale.setScalar(ks);hb.add(gw);T.coldre=coldreMonta(T,ks);gw.position.set(T.gp[0],T.gp[1],T.gp[2]);gw.rotation.set(T.gr[0],T.gr[1],T.gr[2]);T.gun=gw;}}saqueEstado(T,dt);if(T.gun){const a=T.sqRig;if(a&&a.corrigido&&a.gw===T.gun){const prop=T.gun.children[0];prop.position.copy(a.local);prop.quaternion.copy(a.giro);a.corrigido=false;}T.gun.visible=!!CB.drawn;}if(T.coldre)T.coldre.userData.arma.visible=!(CB&&CB.drawn);if(T.gmf)T.gmf.visible=!!(CB&&CB.mf&&CB.mf.visible);bracoTrajeto(T,true,dt);heroiGestoVolta(T);rigHeroiPre(T);T.mx.update(dt);heroiGesto(T,dt);agTick(T,dt);rigHeroiTick(T,dt);boinaFitasTick(T,dt);/* CEO 12/11 (hq): 'pescoco enfiado, clavicula para cima': o corpo veio de pescoco curto. Sobe o osso do pescoco (nk[0], metros) e desce os dois ossos da clavicula (nk[1]); posicao, nao giro, a partir da posicao original guardada (nao acumula) */if(TP.nk){if(!T.nb){T.nb=['Neck','LeftShoulder','RightShoulder'].map(function(n){var b=T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);return b?[b,b.position.clone(),b.parent.getWorldScale(new THREE.Vector3()).y||1]:null;});}T.nb.forEach(function(e,i){if(!e)return;e[0].position.copy(e[1]);e[0].position.y+=(i?-TP.nk[1]:TP.nk[0])/e[2];});}/* CEO 12/11 (gg): ombros deslocados: o corpo foi modelado de bracos abertos e, com o braco caido, o ombro estufa. Baixa a clavicula (om[0]) e fecha o braco no corpo (om[1]) por cima da animacao; some ao mirar */if(TP.om&&(TP.om[0]||TP.om[1])){if(!T.ob){T.ob=['LeftShoulder','RightShoulder','LeftArm','RightArm'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});T.oa=new THREE.Vector3();T.oq=new THREE.Quaternion();T.ow=new THREE.Quaternion();T.op=new THREE.Quaternion();}var ory=T.m.rotation.y,rf=Math.min(1,Math.max(sp>.4?.6:0,(sp-2)/2))*(1-(T.aim||0)),/* (ha) andando tambem: tronco firme, sem molejo */owt=1-(T.aim||0);/* CEO 12/11 (gr): correndo, o tronco para de rebolar (giro e tombo lateral da coluna e do quadril caem 65%) */if(!T.sp)T.sp=['Hips','Spine','Spine1','Spine2','Neck'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});if(rf>0)for(var si=0;si<4;si++){var sb=T.sp[si];if(!sb)continue;if(si)sb.rotation.y*=1-.65*rf;sb.rotation.z*=1-.65*rf;}/* CEO 12/11 (hc): 'ombro caido, relaxadao': peito para cima (coluna alta estende TP.pt) e o pescoco compensa para o olhar nao subir; a clavicula deixa de ser baixada (om[0] .14 -> .03) */var pe=(TP.pt||0)*(1-(T.aim||0));T.pl=T.pl||[];T.pd=T.pd||[];[[3,-1],[2,-.5],[4,.9]].forEach(function(e){var b=T.sp[e[0]];if(!b)return;/* DEFEITO 12/11 15h (CEO hd, 'dois olhos e dois narizes'): osso que a animacao nao reescreve no quadro guardava o ajuste e somava de novo, a cabeca ia girando sozinha. Agora tira o ajuste do quadro anterior antes de por o novo */if(b.rotation.x===T.pl[e[0]])b.rotation.x-=T.pd[e[0]]||0;var d=pe*e[1];b.rotation.x+=d;T.pl[e[0]]=b.rotation.x;T.pd[e[0]]=d;});T.oa.set(Math.sin(ory),0,Math.cos(ory));for(var oi=0;oi<4;oi++){var ob=T.ob[oi];if(!ob)continue;T.oq.setFromAxisAngle(T.oa,(oi<2?TP.om[0]:TP.om[1])*(oi%2?1:-1)*owt);ob.getWorldQuaternion(T.ow);T.oq.multiply(T.ow);ob.parent.getWorldQuaternion(T.op);ob.quaternion.copy(T.op.invert().multiply(T.oq));}}/* CEO 12/11 (gq): parado e sem mirar o boneco NAO acompanha a camera (da para girar 360 e ver o rosto); andando vira para onde anda; arma em uso vira para a mira */var cy=L.yaw,am0=CB&&CB.drawn&&(ads()||CB.aimHold||CB.kick>.05||CB.aimT>0)/* (pw) sem mirar o corpo vira para onde corre, como sem arma */,ty=am0?cy+Math.PI:passo?Math.atan2(P.vx,P.vz):T.m.rotation.y;T.m.rotation.y+=dAng(T.m.rotation.y,ty)*(1-Math.exp(-dt*10));T.m.position.set(P.x,P.y+(T.oy||0),P.z);if(GP.trans&&GP.trans.janela){T.m.rotation.y=Math.atan2(GP.trans.ate[0]-GP.trans.de[0],GP.trans.ate[1]-GP.trans.de[1]);}
+m.updateMatrixWorld(true);var pp=m.worldToLocal(bh.getWorldPosition(new THREE.Vector3()));c.traverse(function(o){if(o.isMesh){o.castShadow=true;o.frustumCulled=false;/* CEO 12/11 (gj): boina na cor da capa (cinza-marrom, fosca, sem brasao a vista) e um pouco mais baixa */o.material.map=null;o.material.metalness=0;o.material.roughness=1;o.material.color.set(T.bc);o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;}});/* CEO 12/11 (id) 'pedaco da cabeca faltando, nao preenche a boina': de baixo dava para ver atraves da boina. Forro escuro cor de cabelo por dentro (mesma forma, 10% menor) fecha o vao */(function(){var fo=[];c.traverse(function(o){if(o.isMesh)fo.push(o);});fo.forEach(function(o){var f=new THREE.Mesh(o.geometry,new THREE.MeshStandardMaterial({color:T.bf,roughness:1,metalness:0,side:THREE.DoubleSide}));f.position.copy(o.position);f.quaternion.copy(o.quaternion);f.scale.copy(o.scale).multiplyScalar(.9);f.frustumCulled=false;o.parent.add(f);/* CEO 12/11 (ig) 'buraco da cabeca': por tras dava para ver o ceu no vao entre o cabelo e a boina. Enchimento cor de cabelo dentro da boina: elipsoide alinhado ao disco da boina (eixos tirados da propria malha), 80% do raio e 75% da espessura */var p=o.geometry.attributes.position,n=p.count,cx=0,cy=0,cz=0,i,A=[0,0,0,0,0,0];for(i=0;i<n;i++){cx+=p.getX(i);cy+=p.getY(i);cz+=p.getZ(i);}cx/=n;cy/=n;cz/=n;for(i=0;i<n;i++){var x=p.getX(i)-cx,y=p.getY(i)-cy,z=p.getZ(i)-cz;A[0]+=x*x;A[1]+=x*y;A[2]+=x*z;A[3]+=y*y;A[4]+=y*z;A[5]+=z*z;}var pw=function(ex){var v=new THREE.Vector3(.5,.7,.3),k,t;for(k=0;k<60;k++){t=new THREE.Vector3(A[0]*v.x+A[1]*v.y+A[2]*v.z,A[1]*v.x+A[3]*v.y+A[4]*v.z,A[2]*v.x+A[4]*v.y+A[5]*v.z);if(ex)t.addScaledVector(ex,-t.dot(ex));v=t.normalize();}return v;},e1=pw(null),e2=pw(e1),e3=new THREE.Vector3().crossVectors(e1,e2).normalize(),r=[0,0,0],w=new THREE.Vector3();for(i=0;i<n;i++){w.set(p.getX(i)-cx,p.getY(i)-cy,p.getZ(i)-cz);r[0]=Math.max(r[0],Math.abs(w.dot(e1)));r[1]=Math.max(r[1],Math.abs(w.dot(e2)));r[2]=Math.max(r[2],Math.abs(w.dot(e3)));}var en=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),f.material);en.position.set(cx,cy,cz);en.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(e1,e2,e3));en.scale.set(r[0]*T.be[0],r[1]*T.be[0],r[2]*T.be[1]);en.frustumCulled=false;o.add(en);T.ench=en;});})();c.scale.setScalar(T.bs/kk);c.scale.y*=T.by;c.scale.z*=T.by;/* by aperta altura e fundo da boina (gt: bem ajustada na cabeca) */c.rotation.set(T.br[0],T.br[1],T.br[2]);c.position.set(pp.x+T.bp[0]/kk,pp.y+T.bp[1]/kk,pp.z+T.bp[2]/kk);m.add(c);m.updateMatrixWorld(true);bh.attach(c);heroiPadraoPeca(T,m,c,bh,true);T.boina=c;boinaCabecaAssenta(T);});T.m=m;/* CEO 12/11 (ii) 'deu um stutter e ele popou fora da viatura': a 1a vez que o heroi aparecia a placa preparava malha e textura na hora. Desenha 1 quadro minusculo com ele ja na carga */try{m.traverse(function(o){o.frustumCulled=false;});var pv=m.visible,pr=renderer.getRenderTarget(),pw=new THREE.WebGLRenderTarget(8,8);m.visible=true;renderer.setRenderTarget(pw);renderer.render(scene,camera);renderer.setRenderTarget(pr);pw.dispose();m.visible=pv;}catch(e){}})(hp.gl);}return;}heroiRostoIni(T);var ok=S.phase==='play'&&!S.inCar&&!cenaOn();T.k=ok?(T.k||0)+((T.on?1:0)-(T.k||0))*Math.min(1,dt*9):0;var on=T.k>.3;/* CEO 12/11 (fx): troca 1a/3a sem corte: T.k desliza de 0 a 1 e a camera sai do olho ate o ombro *//* mira tambem em 3a pessoa (CEO 12/11: nada de misturar com 1a) */T.m.visible=on;VM.scale.setScalar(on?1e-4:1);/* o jogo religa VM.visible todo quadro ao sacar: encolhe em vez de esconder */if(!on){if(T.vv){VM.visible=true;T.vv=0;}if(T.vf){FIST.visible=true;T.vf=0;}return;}if(VM.visible){VM.visible=false;T.vv=1;}if(FIST.visible){FIST.visible=false;T.vf=1;}var sp=Math.hypot(P.vx||0,P.vz||0),/* CEO 16/11 (po) 'correndo pra tras, parecendo o Michael Jackson': arma na mao e andando CONTRA a frente do corpo = passo para tras, nunca a corrida de frente *//* CEO 16/11 (pw): arma na mao SEM mirar = anda e corre igual sem arma; MIRANDO ou atirando = pronto alto */alturaAr=P.alt-supportH(P.x,P.z),pouso=P.pouso&&T.a[P.pouso]&&alturaAr<=.025&&!P.vy?P.pouso:null,livre=!pouso&&CB&&CB.drawn&&CB.item===0&&!CB.reload&&!P.mt&&!P.arc&&!(P.vaultT>0)&&Math.abs(P.vy||0)<.02&&!cenaOn()&&!S.finalCena&&CARRY.ser!=='dog',pronto=livre&&!P.crouch&&sp<2.65,passo=sp>(pronto?.12:.4),mira=!!CB&&CB.drawn&&(ads()||CB.aimHold||CB.aimT>0||CB.kick>.05),bk=sp>.4&&mira&&(P.vx*Math.sin(T.m.rotation.y)+P.vz*Math.cos(T.m.rotation.y))/sp<-.5,nm=P.preSalto&&T.a.SaltoDePe?'SaltoDePe':GP.trans&&GP.trans.janela&&T.a.Cautious_Crouch_Walk_Forward?'Cautious_Crouch_Walk_Forward':P.mt?(P.mt.b&&P.mt.coroa>.56?'IdleAlpha':P.mt.b&&P.mt.h-P.mt.y0<1.15&&T.a.Cautious_Crouch_Walk_Forward?(P.mt.k<.53?'Cautious_Crouch_Walk_Forward':'Jump_Over_Obstacle'):P.mt.b&&T.a.ApoioNaQuina?'ApoioNaQuina':'climbing_up_wall'):(P.vaultT||0)>0?'Jump_Over_Obstacle':(P.arc||alturaAr>.025||P.vy>1||P.vy< -2.5)?(P.saltoCorrida?'Run_and_Jump':P.saltoCaminhada?'SaltoDePe':'Jumping_Down'):pouso?pouso:/* P.alt e altura de laje, nao de pulo: usa so a velocidade vertical */CB&&CB.reload>0&&!P.crouch?(sp>.4?'Slow_Walk_Reload':'Standing_Reload'):CB&&CB.drawn&&!passo&&!P.crouch&&(pronto||CB.kick>0||CB.aimT>0||CB.aimHold)?'Cowboy_Quick_Draw_Shooting':P.crouch?'Cautious_Crouch_Walk_Forward':pronto&&!mira&&passo?'Walking':(mira||pronto)&&passo?(bk?(T.a.Walk_Backward_with_Gun?'Walk_Backward_with_Gun':'Walking'):'Run_and_Shoot'):sp>5.2?'RunFast':sp>3?'Running':sp>.4?'Walking':alturaAr>.01||Math.abs(P.vy||0)>.01||typeof CARRY!=='undefined'&&CARRY.ser==='dog'?'Idle_3':CB&&CB.drawn?(T.a.ProntoBaixo&&!CB.aimHold&&!(CB.aimT>0)&&!(CB.kick>.05)&&!ads()?'ProntoBaixo':'Idle_3'):'IdleAlpha';/* Combat_Stance era guarda de boxe: com arma fica Idle_3 (arma baixa) parado */if(nm!==T.cur&&T.a[nm]){var o=T.a[T.cur];T.a[nm].reset().setEffectiveWeight(1).fadeIn(nm==='IdleAlpha'||T.cur==='IdleAlpha'&&(nm==='Walking'||nm==='Running'||nm==='RunFast')?.25:.16).play();if(nm==='Run_and_Jump'){/* CEO 12/11 (gs): o clipe tem 2,3 s (corrida, salto, pouso); o pulo do jogo dura ~0,7 s: entra ja na decolagem e nao repete */T.a[nm].time=.7;T.a[nm].setLoop(THREE.LoopOnce,1);T.a[nm].clampWhenFinished=true;}if(o)o.fadeOut(nm==='IdleAlpha'||T.cur==='IdleAlpha'&&(nm==='Walking'||nm==='Running'||nm==='RunFast')?.25:.16);T.cur=nm;}if(T.a[T.cur])T.a[T.cur].timeScale=(alturaAr>.06&&/^(Walking|Running|RunFast|Idle_3)$/.test(T.cur)?.3:1)*(T.cur==='Walking'?(bk?-1:1)*clamp(sp/1.5,.75,2):/* CEO 12/11 (ha): andar vale ate 3 m/s (antes o trote entrava em 2,2), passo mais firme */T.cur==='Running'?clamp(sp/3.6,.85,1.3):T.cur==='RunFast'?clamp(sp/6,.85,1.25):/* CEO 12/11 (fx): passo no ritmo da velocidade real (andar 3.5, correr 6): antes a corrida tocava a 78% (camera lenta) e o RunFast nunca entrava */P.crouch?(sp>.3?(AG.v?clamp(sp/AG.v,.6,P.sprintBaixo?1.53:1.8):1):0):1);if(CB.reload>0&&(T.cur==='Standing_Reload'||T.cur==='Slow_Walk_Reload')){var rec=T.a[T.cur];rec.time=clamp(1-CB.reload/CB.rdur,0,.9999)*rec.getClip().duration;rec.timeScale=0;}if(GP.trans&&GP.trans.janela&&T.a[T.cur]){/* ponytail: reaproveita o agachamento, sem outro asset ou escala artificial do corpo. */T.a[T.cur].time=GP.trans.t*(T.a[T.cur].getClip().duration||1);T.a[T.cur].timeScale=0;}tpSaltoFase(T,pouso,alturaAr);if(T.cur==='Cowboy_Quick_Draw_Shooting'&&T.a[T.cur]){/* tiro firme: pose de duas maos congelada, sem reinicio por tiro */T.a[T.cur].time=3.2;T.a[T.cur].timeScale=0;}if(ARMA.v&&T.gunV!==ARMA.v&&(!T.gun||!T.sq)){var hb=T.m.getObjectByName('mixamorigRightHand')||T.m.getObjectByName('mixamorig:RightHand');if(hb){/* CEO 12/11 (fm): a MESMA arma da 1a pessoa, na mao */T.gunV=ARMA.v;if(T.gun)T.gun.parent.remove(T.gun);if(T.coldre)T.coldre.parent.remove(T.coldre);/* CEO 16/11 (retangulo): centro e tamanho medidos na GUN inteira como antes (encaixe da mao igual), mas so a arma visivel vai para a mao */var r=GUN.clone(true);r.children.filter(function(o){return o.userData.armaNova;}).forEach(function(o){r.remove(o);});r.position.set(0,0,0);r.rotation.set(0,0,0);r.scale.set(1,1,1);r.updateMatrixWorld(true);var gb=new THREE.Box3().setFromObject(r),gs=new THREE.Vector3(),gc=new THREE.Vector3();gb.getSize(gs);gb.getCenter(gc);var ks=.2/Math.max(.01,gs.x,gs.y,gs.z)/(T.m.scale.x||1),escalaEncaixe=ks*hb.getWorldScale(new THREE.Vector3()).z,g=armaModelo('tp',escalaEncaixe),gw=new THREE.Group(),mf=MF.clone();mf.visible=false;if(g.userData.armaNova){var mft=ARMA.fit.tp;mf.position.set(mft[0][0],mft[0][1]+.073/escalaEncaixe,mft[0][2]-.177/escalaEncaixe-.05);}g.add(mf);T.gmf=mf;armaLimpa(g);g.position.sub(gc);gw.add(g);gw.scale.setScalar(ks);hb.add(gw);T.coldre=coldreMonta(T,ks);gw.position.set(T.gp[0],T.gp[1],T.gp[2]);gw.rotation.set(T.gr[0],T.gr[1],T.gr[2]);T.gun=gw;}}saqueEstado(T,dt);if(T.gun){const a=T.sqRig;if(a&&a.corrigido&&a.gw===T.gun){const prop=T.gun.children[0];prop.position.copy(a.local);prop.quaternion.copy(a.giro);a.corrigido=false;}T.gun.visible=!!CB.drawn;}if(T.coldre)T.coldre.userData.arma.visible=!(CB&&CB.drawn);if(T.gmf)T.gmf.visible=!!(CB&&CB.mf&&CB.mf.visible);bracoTrajeto(T,true,dt);heroiGestoVolta(T);rigHeroiPre(T);T.mx.update(dt);heroiGesto(T,dt);agTick(T,dt);rigHeroiTick(T,dt);boinaFitasTick(T,dt);/* CEO 12/11 (hq): 'pescoco enfiado, clavicula para cima': o corpo veio de pescoco curto. Sobe o osso do pescoco (nk[0], metros) e desce os dois ossos da clavicula (nk[1]); posicao, nao giro, a partir da posicao original guardada (nao acumula) */if(TP.nk){if(!T.nb){T.nb=['Neck','LeftShoulder','RightShoulder'].map(function(n){var b=T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);return b?[b,b.position.clone(),b.parent.getWorldScale(new THREE.Vector3()).y||1]:null;});}T.nb.forEach(function(e,i){if(!e)return;e[0].position.copy(e[1]);e[0].position.y+=(i?-TP.nk[1]:TP.nk[0])/e[2];});}/* CEO 12/11 (gg): ombros deslocados: o corpo foi modelado de bracos abertos e, com o braco caido, o ombro estufa. Baixa a clavicula (om[0]) e fecha o braco no corpo (om[1]) por cima da animacao; some ao mirar */if(TP.om&&(TP.om[0]||TP.om[1])){if(!T.ob){T.ob=['LeftShoulder','RightShoulder','LeftArm','RightArm'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});T.oa=new THREE.Vector3();T.oq=new THREE.Quaternion();T.ow=new THREE.Quaternion();T.op=new THREE.Quaternion();}var ory=T.m.rotation.y,rf=Math.min(1,Math.max(sp>.4?.6:0,(sp-2)/2))*(1-(T.aim||0)),/* (ha) andando tambem: tronco firme, sem molejo */owt=1-(T.aim||0);/* CEO 12/11 (gr): correndo, o tronco para de rebolar (giro e tombo lateral da coluna e do quadril caem 65%) */if(!T.sp)T.sp=['Hips','Spine','Spine1','Spine2','Neck'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});if(rf>0)for(var si=0;si<4;si++){var sb=T.sp[si];if(!sb)continue;if(si)sb.rotation.y*=1-.65*rf;sb.rotation.z*=1-.65*rf;}/* CEO 12/11 (hc): 'ombro caido, relaxadao': peito para cima (coluna alta estende TP.pt) e o pescoco compensa para o olhar nao subir; a clavicula deixa de ser baixada (om[0] .14 -> .03) */var pe=(TP.pt||0)*(1-(T.aim||0));T.pl=T.pl||[];T.pd=T.pd||[];[[3,-1],[2,-.5],[4,.9]].forEach(function(e){var b=T.sp[e[0]];if(!b)return;/* DEFEITO 12/11 15h (CEO hd, 'dois olhos e dois narizes'): osso que a animacao nao reescreve no quadro guardava o ajuste e somava de novo, a cabeca ia girando sozinha. Agora tira o ajuste do quadro anterior antes de por o novo */if(b.rotation.x===T.pl[e[0]])b.rotation.x-=T.pd[e[0]]||0;var d=pe*e[1];b.rotation.x+=d;T.pl[e[0]]=b.rotation.x;T.pd[e[0]]=d;});T.oa.set(Math.sin(ory),0,Math.cos(ory));for(var oi=0;oi<4;oi++){var ob=T.ob[oi];if(!ob)continue;T.oq.setFromAxisAngle(T.oa,(oi<2?TP.om[0]:TP.om[1])*(oi%2?1:-1)*owt);ob.getWorldQuaternion(T.ow);T.oq.multiply(T.ow);ob.parent.getWorldQuaternion(T.op);ob.quaternion.copy(T.op.invert().multiply(T.oq));}}/* CEO 12/11 (gq): parado e sem mirar o boneco NAO acompanha a camera (da para girar 360 e ver o rosto); andando vira para onde anda; arma em uso vira para a mira */var cy=L.yaw,am0=CB&&CB.drawn&&(ads()||CB.aimHold||CB.kick>.05||CB.aimT>0)/* (pw) sem mirar o corpo vira para onde corre, como sem arma */,ty=am0?cy+Math.PI:passo?Math.atan2(P.vx,P.vz):T.m.rotation.y;T.m.rotation.y+=dAng(T.m.rotation.y,ty)*(1-Math.exp(-dt*10));T.m.position.set(P.x,P.y+(T.oy||0),P.z);if(GP.trans&&GP.trans.janela){T.m.rotation.y=Math.atan2(GP.trans.ate[0]-GP.trans.de[0],GP.trans.ate[1]-GP.trans.de[1]);}
 if(P.mt&&P.mt.b){var mt=P.mt,alvo=Math.atan2(mt.nx,mt.nz);T.m.rotation.y+=dAng(T.m.rotation.y,alvo)*(1-Math.exp(-dt*18));}
 
 var am=CB&&CB.drawn&&(ads()||CB.aimHold||CB.kick>.05);T.aim=(T.aim||0)+((am?1:0)-(T.aim||0))*Math.min(1,dt*(am?10:12));/* Baixa sem arrastar o braço; a subida mantém a curva da empunhadura aprovada. */if(T.gun&&CB&&CB.drawn){/* mira por codigo: braco direito estende na direcao da camera; arma sempre alinhada (baixa em repouso, na mira ao mirar) */if(!T.v1){T.v1=new THREE.Vector3();T.v2=new THREE.Vector3();T.fw=new THREE.Vector3();T.q1=new THREE.Quaternion();T.q2=new THREE.Quaternion();T.q3=new THREE.Quaternion();T.e1=new THREE.Euler(0,0,0,'YXZ');}T.m.updateMatrixWorld(true);/* O movimento relaxado cede à mira e às ações com animação própria. */
@@ -16666,7 +16370,7 @@ function encaixaLuva(T,peso){
  v[7].copy(v[0]).addScaledVector(v[5],.78).addScaledVector(v[6],.016);
  a.ref.getWorldPosition(v[1]);h.worldToLocal(v[7]);h.worldToLocal(v[1]);g.position.addScaledVector(v[7].sub(v[1]),peso);g.updateMatrixWorld(true);
 }
-/* mao-mira (CEO 16/11): empunhadura de duas maos na mira; so bracos e maos, por cima do clipe. */var MM={b:null,v:Array.from({length:14},()=>new THREE.Vector3()),q:Array.from({length:3},()=>new THREE.Quaternion()),q0:new THREE.Quaternion(),u:[.79,.43,.35],ap:[.035,.03],cot:[.65,.75,.15]};function mmTurn(b,c,t,w){var V=MM.v,Q=MM.q;b.getWorldPosition(V[0]);c.getWorldPosition(V[1]).sub(V[0]).normalize();V[2].copy(t).sub(V[0]).normalize();Q[0].setFromUnitVectors(V[1],V[2]);Q[1].set(0,0,0,1).slerp(Q[0],w);b.getWorldQuaternion(Q[0]);Q[1].multiply(Q[0]);b.parent.getWorldQuaternion(Q[2]);b.quaternion.copy(Q[2].invert().multiply(Q[1]));b.updateMatrixWorld(true);}function maoMira(T,fw,cy,w){var V=MM.v,B=MM.b,i;if(!B){B=['RightArm','RightForeArm','RightHand','LeftArm','LeftForeArm','LeftHand'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});if(B.some(function(x){return !x;}))return;MM.b=B;}V[8].set(Math.cos(cy),0,-Math.sin(cy));B[0].getWorldPosition(V[3]);B[1].getWorldPosition(V[4]);B[2].getWorldPosition(V[5]);var ul=V[3].distanceTo(V[4]),fl=V[4].distanceTo(V[5]);B[3].getWorldPosition(V[6]);var lE=B[3].getWorldPosition(V[7]).distanceTo(B[4].getWorldPosition(V[12]))+V[12].distanceTo(B[5].getWorldPosition(V[13])),k;for(k=MM.u[1];k<2.5;k+=.15){V[9].copy(fw).multiplyScalar(MM.u[0]).addScaledVector(V[8],-k);V[9].y-=MM.u[2];V[9].normalize();V[10].copy(V[3]).addScaledVector(V[9],ul);V[11].copy(V[10]).addScaledVector(fw,fl).addScaledVector(V[8],-MM.ap[0]);V[11].y-=MM.ap[1];if(V[11].distanceTo(V[6])<lE*.98)break;}V[11].copy(V[10]).addScaledVector(fw,fl);mmTurn(B[0],B[1],V[10],w);mmTurn(B[1],B[2],V[11],w);B[2].quaternion.slerp(MM.q0,w);B[2].updateMatrixWorld(true);B[2].getWorldPosition(V[11]).addScaledVector(V[8],-MM.ap[0]);V[11].y-=MM.ap[1];B[3].getWorldPosition(V[3]);B[4].getWorldPosition(V[4]);B[5].getWorldPosition(V[5]);ul=V[3].distanceTo(V[4]);fl=V[4].distanceTo(V[5]);V[6].copy(V[11]).sub(V[3]);var len=Math.min(V[6].length(),ul+fl-.0001);V[6].normalize();var al=(ul*ul-fl*fl+len*len)/(2*len),h=Math.sqrt(Math.max(0,ul*ul-al*al));V[12].copy(V[8]).multiplyScalar(-MM.cot[0]).addScaledVector(fw,-MM.cot[2]);V[12].y-=MM.cot[1];V[12].addScaledVector(V[6],-V[12].dot(V[6])).normalize();V[7].copy(V[3]).addScaledVector(V[6],al).addScaledVector(V[12],h);mmTurn(B[3],B[4],V[7],w);mmTurn(B[4],B[5],V[11],w);B[5].quaternion.slerp(MM.q0,w);B[5].updateMatrixWorld(true);}/* arma-na-mao (CEO 16/11): sem mira, mao fechada no cabo e pistola na linha do antebraco; pronto baixo com 2 maos. Peso 1-mira. */var AM={f:null,c:[0,-.05,.1],pa:.5,o:.028,pu:.6,pb:.95,u:[.79,.43,.35],cot:[.65,.75,.15],v:[],m:new THREE.Matrix4(),m2:new THREE.Matrix4(),q:new THREE.Quaternion(),q0:new THREE.Quaternion(),s:new THREE.Vector3(),fw:new THREE.Vector3()};function amIni(T){var A=T.a.Cowboy_Quick_Draw_Shooting,g=function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);},i,r={R:[],L:[]};if(!A)return null;A.getClip().tracks.forEach(function(t){var m=t.name.match(/(Right|Left)Hand(Thumb|Index|Middle|Ring|Pinky)\d\.quaternion$/),b;if(!m)return;b=T.m.getObjectByName(t.name.replace('.quaternion',''));if(!b)return;var v=t.createInterpolant().evaluate(3.2);r[m[1][0]].push([b,new THREE.Quaternion(v[0],v[1],v[2],v[3])]);});r.b=['RightHand','RightForeArm','RightHandMiddle1','RightHandIndex1','RightHandPinky1'].map(g);if(r.b.some(function(x){return !x;}))return null;for(i=0;i<8;i++)AM.v.push(new THREE.Vector3());return r;}function armaMao(T,cy,emp){var G=T.gun,w=1-emp,F,V=AM.v,B,pb,i,s0,s1;G.position.set(T.gp[0],T.gp[1],T.gp[2]);if(w<.001)return;if(!AM.f){AM.f=amIni(T);if(!AM.f){AM.f=0;return;}}F=AM.f;if(!F)return;B=F.b;pb=T.a.ProntoBaixo&&T.a.ProntoBaixo.isRunning()?T.a.ProntoBaixo.getEffectiveWeight()*w:0;if(pb>.001&&typeof maoMira==='function'){var ry=T.m.rotation.y;AM.fw.set(Math.sin(ry)*Math.cos(AM.pb),-Math.sin(AM.pb),Math.cos(ry)*Math.cos(AM.pb));s0=MM.u;s1=MM.cot;MM.u=AM.u;MM.cot=AM.cot;maoMira(T,AM.fw,ry+Math.PI,pb);MM.u=s0;MM.cot=s1;for(i=0;i<F.L.length;i++)F.L[i][0].quaternion.slerp(F.L[i][1],pb);}B[0].quaternion.slerp(AM.q0,w*AM.pu);for(i=0;i<F.R.length;i++)F.R[i][0].quaternion.slerp(F.R[i][1],w);B[1].updateMatrixWorld(true);B[0].getWorldPosition(V[0]);B[1].getWorldPosition(V[1]);B[2].getWorldPosition(V[2]);B[3].getWorldPosition(V[3]);B[4].getWorldPosition(V[4]);V[5].copy(V[2]).sub(V[0]).normalize();/* CEO 17/11: encaixe pelo eixo da mao, nao do antebraco */V[6].copy(V[4]).sub(V[3]);V[6].addScaledVector(V[5],-V[6].dot(V[5])).normalize();V[7].copy(V[2]).sub(V[0]).normalize().cross(V[6]).normalize();V[4].copy(V[6]).negate();V[3].crossVectors(V[6],V[5]);V[5].negate();AM.m.makeBasis(V[3],V[4],V[5]);AM.q.setFromRotationMatrix(AM.m);G.getWorldScale(AM.s);V[1].copy(V[2]).sub(V[0]).multiplyScalar(AM.pa).add(V[0]).addScaledVector(V[7],AM.o);V[2].set(AM.c[0]*AM.s.x,AM.c[1]*AM.s.y,AM.c[2]*AM.s.z).applyQuaternion(AM.q);V[1].sub(V[2]);AM.m.compose(V[1],AM.q,AM.s);AM.m2.copy(G.parent.matrixWorld).invert();AM.m.premultiply(AM.m2);AM.m.decompose(V[1],AM.q,V[2]);G.quaternion.slerp(AM.q,w);G.position.lerp(V[1],w);}function cambCamera(dt){
+/* mao-mira (CEO 16/11): empunhadura de duas maos na mira; so bracos e maos, por cima do clipe. */var MM={b:null,v:Array.from({length:14},()=>new THREE.Vector3()),q:Array.from({length:3},()=>new THREE.Quaternion()),q0:new THREE.Quaternion(),u:[.79,.43,.35],ap:[.035,.03],cot:[.65,.75,.15]};function mmTurn(b,c,t,w){var V=MM.v,Q=MM.q;b.getWorldPosition(V[0]);c.getWorldPosition(V[1]).sub(V[0]).normalize();V[2].copy(t).sub(V[0]).normalize();Q[0].setFromUnitVectors(V[1],V[2]);Q[1].set(0,0,0,1).slerp(Q[0],w);b.getWorldQuaternion(Q[0]);Q[1].multiply(Q[0]);b.parent.getWorldQuaternion(Q[2]);b.quaternion.copy(Q[2].invert().multiply(Q[1]));b.updateMatrixWorld(true);}function maoMira(T,fw,cy,w){var V=MM.v,B=MM.b,i;if(!B){B=['RightArm','RightForeArm','RightHand','LeftArm','LeftForeArm','LeftHand'].map(function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);});if(B.some(function(x){return !x;}))return;MM.b=B;}V[8].set(Math.cos(cy),0,-Math.sin(cy));B[0].getWorldPosition(V[3]);B[1].getWorldPosition(V[4]);B[2].getWorldPosition(V[5]);var ul=V[3].distanceTo(V[4]),fl=V[4].distanceTo(V[5]);B[3].getWorldPosition(V[6]);var lE=B[3].getWorldPosition(V[7]).distanceTo(B[4].getWorldPosition(V[12]))+V[12].distanceTo(B[5].getWorldPosition(V[13])),k;for(k=MM.u[1];k<2.5;k+=.15){V[9].copy(fw).multiplyScalar(MM.u[0]).addScaledVector(V[8],-k);V[9].y-=MM.u[2];V[9].normalize();V[10].copy(V[3]).addScaledVector(V[9],ul);V[11].copy(V[10]).addScaledVector(fw,fl).addScaledVector(V[8],-MM.ap[0]);V[11].y-=MM.ap[1];if(V[11].distanceTo(V[6])<lE*.98)break;}V[11].copy(V[10]).addScaledVector(fw,fl);mmTurn(B[0],B[1],V[10],w);mmTurn(B[1],B[2],V[11],w);B[2].quaternion.slerp(MM.q0,w);B[2].updateMatrixWorld(true);B[2].getWorldPosition(V[11]).addScaledVector(V[8],-MM.ap[0]);V[11].y-=MM.ap[1];B[3].getWorldPosition(V[3]);B[4].getWorldPosition(V[4]);B[5].getWorldPosition(V[5]);ul=V[3].distanceTo(V[4]);fl=V[4].distanceTo(V[5]);V[6].copy(V[11]).sub(V[3]);var len=Math.min(V[6].length(),ul+fl-.0001);V[6].normalize();var al=(ul*ul-fl*fl+len*len)/(2*len),h=Math.sqrt(Math.max(0,ul*ul-al*al));V[12].copy(V[8]).multiplyScalar(-MM.cot[0]).addScaledVector(fw,-MM.cot[2]);V[12].y-=MM.cot[1];V[12].addScaledVector(V[6],-V[12].dot(V[6])).normalize();V[7].copy(V[3]).addScaledVector(V[6],al).addScaledVector(V[12],h);mmTurn(B[3],B[4],V[7],w);mmTurn(B[4],B[5],V[11],w);B[5].quaternion.slerp(MM.q0,w);B[5].updateMatrixWorld(true);}/* arma-na-mao (CEO 16/11): sem mira, mao fechada no cabo e pistola na linha do antebraco; pronto baixo com 2 maos. Peso 1-mira. */var AM={f:null,c:[0,-.05,.1],pa:.5,o:.028,pu:.6,pb:.95,u:[.79,.43,.35],cot:[.65,.75,.15],v:[],m:new THREE.Matrix4(),m2:new THREE.Matrix4(),q:new THREE.Quaternion(),q0:new THREE.Quaternion(),s:new THREE.Vector3(),fw:new THREE.Vector3()};function amIni(T){var A=T.a.Cowboy_Quick_Draw_Shooting,g=function(n){return T.m.getObjectByName('mixamorig'+n)||T.m.getObjectByName('mixamorig:'+n);},i,r={R:[],L:[]};if(!A)return null;A.getClip().tracks.forEach(function(t){var m=t.name.match(/(Right|Left)Hand(Thumb|Index|Middle|Ring|Pinky)\d\.quaternion$/),b;if(!m)return;b=T.m.getObjectByName(t.name.replace('.quaternion',''));if(!b)return;var v=t.createInterpolant().evaluate(3.2);r[m[1][0]].push([b,new THREE.Quaternion(v[0],v[1],v[2],v[3])]);});r.b=['RightHand','RightForeArm','RightHandMiddle1','RightHandIndex1','RightHandPinky1'].map(g);if(r.b.some(function(x){return !x;}))return null;for(i=0;i<8;i++)AM.v.push(new THREE.Vector3());return r;}function armaMao(T,cy,emp){var G=T.gun,w=1-emp,F,V=AM.v,B,pb,i,s0,s1;G.position.set(T.gp[0],T.gp[1],T.gp[2]);if(w<.001)return;if(!AM.f){AM.f=amIni(T);if(!AM.f){AM.f=0;return;}}F=AM.f;if(!F)return;B=F.b;pb=T.a.ProntoBaixo&&T.a.ProntoBaixo.isRunning()?T.a.ProntoBaixo.getEffectiveWeight()*w:0;if(pb>.001&&typeof maoMira==='function'){var ry=T.m.rotation.y;AM.fw.set(Math.sin(ry)*Math.cos(AM.pb),-Math.sin(AM.pb),Math.cos(ry)*Math.cos(AM.pb));s0=MM.u;s1=MM.cot;MM.u=AM.u;MM.cot=AM.cot;maoMira(T,AM.fw,ry+Math.PI,pb);MM.u=s0;MM.cot=s1;for(i=0;i<F.L.length;i++)F.L[i][0].quaternion.slerp(F.L[i][1],pb);}B[0].quaternion.slerp(AM.q0,w*AM.pu);for(i=0;i<F.R.length;i++)F.R[i][0].quaternion.slerp(F.R[i][1],w);B[1].updateMatrixWorld(true);B[0].getWorldPosition(V[0]);B[1].getWorldPosition(V[1]);B[2].getWorldPosition(V[2]);B[3].getWorldPosition(V[3]);B[4].getWorldPosition(V[4]);V[5].copy(V[0]).sub(V[1]).normalize();V[6].copy(V[4]).sub(V[3]);V[6].addScaledVector(V[5],-V[6].dot(V[5])).normalize();V[7].copy(V[2]).sub(V[0]).normalize().cross(V[6]).normalize();V[4].copy(V[6]).negate();V[3].crossVectors(V[6],V[5]);V[5].negate();AM.m.makeBasis(V[3],V[4],V[5]);AM.q.setFromRotationMatrix(AM.m);G.getWorldScale(AM.s);V[1].copy(V[2]).sub(V[0]).multiplyScalar(AM.pa).add(V[0]).addScaledVector(V[7],AM.o);V[2].set(AM.c[0]*AM.s.x,AM.c[1]*AM.s.y,AM.c[2]*AM.s.z).applyQuaternion(AM.q);V[1].sub(V[2]);AM.m.compose(V[1],AM.q,AM.s);AM.m2.copy(G.parent.matrixWorld).invert();AM.m.premultiply(AM.m2);AM.m.decompose(V[1],AM.q,V[2]);G.quaternion.slerp(AM.q,w);G.position.lerp(V[1],w);}function cambCamera(dt){
   var q=S.cambCena,V=cambCarro(),tr=[V.x+2.43*Math.sin(V.yaw),V.z+2.43*Math.cos(V.yaw)];if(!q)return;
   q.t+=dt;P.spd=0;
   if(q.pPara&&q.inicio!=null){var pk=sm(clamp((S.time-q.inicio)/1.65,0,1));P.x=q.pDe.x+(q.pPara.x-q.pDe.x)*pk;P.z=q.pDe.z+(q.pPara.z-q.pDe.z)*pk;}
@@ -16962,14 +16666,14 @@ function fistReset(){FIST.children.forEach(function(f){f.userData.k=0;f.userData
   /* CEO 08/11 'capricha na textura, Codex': lata de aco enferrujada e entulho de obra (texturas/codex2); cor lisa ate carregar */
   [[v,'cacamba-lata.png',[2,1]],[sc,'cacamba-entulho.png',[2,1.5]]].forEach(function(q){new THREE.TextureLoader().load('texturas/codex2/'+q[1],function(t){t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(q[2][0],q[2][1]);t.anisotropy=4;q[0].map=t;q[0].color.setRGB(1,1,1);q[0].needsUpdate=true;},undefined,function(){});});
   c.rotation.y=Math.PI/2;c.position.set(CACAMBA[0],0,CACAMBA[1]);c.name='cacamba';scene.add(c);COL.push([CACAMBA[0]-D/2,CACAMBA[1]-W/2,CACAMBA[0]+D/2,CACAMBA[1]+W/2,CACAMBA_Y]);})();
-function socoPre(n){if(S.step==='topo34'){var yR=10.2+groundY(97.1,37.5);/* piso real da laje, mesma conta do cenario */P.x=99.4;P.z=37.5;P.y=yR;P.alt=yR-groundY(P.x,P.z);P.vx=P.vz=P.vy=0;n.x=P.x-LUTA_DIST;n.z=37.5;n.y=yR;}bandidoPlay(n,'Idle_10',0);n.yaw=Math.atan2(-(P.x-n.x),-(P.z-n.z));n.m.position.set(n.x,n.y,n.z);n.m.rotation.set(0,n.yaw,0);}
+function socoPre(n){if(S.step==='topo34'){P.x=99.4;P.z=37.5;P.y=10.2;P.alt=10.2-groundY(P.x,P.z);P.vx=P.vz=P.vy=0;n.x=97.4;n.z=37.5;n.y=10.2;}bandidoPlay(n,'Idle_10',0);n.yaw=Math.atan2(-(P.x-n.x),-(P.z-n.z));n.m.position.set(n.x,n.y,n.z);n.m.rotation.set(0,n.yaw,0);}
 function q34Luta(n){S.step='topo34';setMark(null);setObj('');socoPre(n);var fp=new Path(TR_PTS);fcPrepara(fp,fcPerto(fp,CACAMBA[0],CACAMBA[1]));/* CEO 08/11 pos-cacamba: o Fusca do bandido JA esta estacionado ali antes da queda, nunca surge na batida */
   cenaSeq(n,DIALOGO.q34topo,function(){if(S.step!=='topo34')return;if(CB.drawn)draw(false);else sfxDraw(false);CB.shake=Math.max(CB.shake||0,.18);socoStart(n);});}
-var SOCO_SEG=6,LUTA_DIST=1.05;/* luta-combate (CEO 16/11): perto, e combate */
+var SOCO_SEG=6;
 function socoStart(n){socoFecha();S.soco=null;S.step='soco34';S.phase='play';
   var vistos=new Set(),qs=QUIZ_PRONTO?questaoPara('telhado',SOCO_HP-SOCO_CACAMBA+SOCO_VIDA,95):lutaShuffle(QF).filter(function(q){if(q.t.length>95||vistos.has(q.id)||vistos.has(q.t))return false;vistos.add(q.id);vistos.add(q.t);return true;});
   quizRun({n:qs.length,dif:'facil',tempo:SOCO_SEG,titulo:'LUTA · No alto do prédio',tema:'luta',npc:n,qs:qs,luta:true,forma:'batalha'});
-  if(Math.hypot(n.x-P.x,n.z-P.z)<.9){n.x=clamp(P.x-Math.sin(L.yaw)*LUTA_DIST,SOCO_ROOF[0],SOCO_ROOF[2]);n.z=clamp(P.z-Math.cos(L.yaw)*LUTA_DIST,SOCO_ROOF[1],SOCO_ROOF[3]);n.m.position.set(n.x,n.y,n.z);}
+  if(Math.hypot(n.x-P.x,n.z-P.z)<1.4){n.x=clamp(P.x-Math.sin(L.yaw)*1.4,SOCO_ROOF[0],SOCO_ROOF[2]);n.z=clamp(P.z-Math.cos(L.yaw)*1.4,SOCO_ROOF[1],SOCO_ROOF[3]);n.m.position.set(n.x,n.y,n.z);}
   cenaTrava(n);P.arc=P.mt=null;P.jb=-9;JOY.on=false;JOY.x=JOY.y=0;LK.id=null;$('jbase').style.display='none';fistReset();FIST.visible=true;
 }
 /* ponytail: ajuste so ao abrir/trocar questao ou redimensionar, nunca por quadro. */
@@ -17946,13 +17650,10 @@ DIALOGO.quizFalas=D('qzf',[
  ['Central','Tá achando o bueiro difícil? Isso não é especialidade de PM, soldado. Isso é coisa da Polícia Civil.','radio']
 ]);
 DIALOGO.estrada=D('es',[
- ['Você','Entrei na polícia pra prender bandido. Hoje eu devolvi um cachorro.','pensa'],
- ['Você','E quase morri três vezes fazendo isso.','pensa'],
- ['Você','O sistema não quer herói. Quer quem cumpre o roteiro.','pensa'],
- ['Você','Sou homem da lei. Regra que protege bandido, eu passo por cima.','pensa'],
- 
- ['Você','Eu estudei anos pra vestir essa farda. Valeu cada madrugada.','pensa']]);/* CEO 08/11 22h35: ultima reflexao, na estrada */
-var EST_LEN=39,EST_CORTE=[9,19,25],EST_FALA=[[.8,4.9],[6.3,2.2],[10.5,4],[20,4.1],[28.5,4]];/* CEO 09/11 03h50 "falas duplicadas": cada ideia 1 vez (errar ficou na montagem, plantao na Central); nenhuma fala atravessa corte; 37,5 a 44 s respiro com a estrela *//* CEO 09/11: inicio de cada fala depois do fim da voz anterior (a 3a tinha 7,4 s e era cortada pela 4a) *//* 40 a 44 s: silencio com a estrela antes do preto *//* [inicio s, duracao s] de cada fala, na ordem de DIALOGO.estrada */
+ ['Você','Cada questão que eu erro, eu fico melhor.','pensa'],
+ ['Você','Na rua é igual. Só que aqui o erro tem endereço, e mãe esperando no portão.','pensa'],
+ ['Você','Hoje ninguém tombou. Amanhã, eu não sei.','pensa']]);/* CEO 25/11: final enxuto, so 2 frases de efeito (errar aqui, farda na tela preta); o resto reflexao crua *//* CEO 08/11 22h35: ultima reflexao, na estrada */
+var EST_LEN=39,EST_CORTE=[9,19,25],EST_FALA=[[2,2.9],[10.5,6.2],[27,4.2]];/* CEO 25/11: 3 falas, 1 por plano, respiro longo antes da farda *//* CEO 09/11 03h50 "falas duplicadas": cada ideia 1 vez (errar ficou na montagem, plantao na Central); nenhuma fala atravessa corte; 37,5 a 44 s respiro com a estrela *//* CEO 09/11: inicio de cada fala depois do fim da voz anterior (a 3a tinha 7,4 s e era cortada pela 4a) *//* 40 a 44 s: silencio com a estrela antes do preto *//* [inicio s, duracao s] de cada fala, na ordem de DIALOGO.estrada */
 var EST_SKY=[['cHor',0x2c3f73],['cGold',0x5d6fa3],['sunCol',0x8ea3cf],['cMid',0x3a4a80]];/* cores do por do sol viram azul de crepusculo; so cor, luz segue igual */
 var EST={on:false,seen:false,fim:false,t:0,pl:-1,li:-1,c0:null,p1:null,sky:null,hid:[],collar:null,luz:null,star:null,shade:[],pose:[],geo:null,mus:null,musOn:false,musGain:.3,bar:0,raf:0};
 function estBarras(){var h=innerHeight,w=innerWidth,b=Math.min(h*.36,Math.max(0,(h-w/2.39)/2));EST.bar=b;var c=$('cut');c.querySelector('.tp').style.height=b+'px';c.querySelector('.bt').style.height=b+'px';$('cl').style.bottom=(b>=110?Math.max(8,b-100):b+14)+'px';/* faixa alta (celular e 16:10): legenda dentro da faixa preta, nunca em cima do ator */$('skip').style.bottom=(b+16)+'px';}
@@ -17986,10 +17687,10 @@ DIALOGO.estMont=D('emt',[
  ['Você','A Dona Marlene chorou como se eu tivesse devolvido a vida dela.','pensa'],
  ['Você','O Júnior tem dezesseis anos. O sistema já tinha escrito o fim dele. Hoje alguém riscou uma linha.','pensa'],
  ['Você','O Professor manda de longe. Sempre manda de longe. Um dia a gente chega até lá.','pensa'],
- ['Você','O Uno com a escada ficou ali. Ninguém vai acreditar nessa perseguição.','pensa'],
- ['Você','A praça voltou a encher. Não é vitória. É só o bairro respirando de novo, e isso já é muito.','pensa'],
- ['Você','Ninguém vê o que acontece quando a sirene desliga. É aí que a farda pesa.','pensa'],
- ['Você','Eu só quero um mundo melhor. E vou buscar na rua.','pensa']]);
+ ['Você','O Uno ficou lá, com a escada no teto. Amanhã vira piada no batalhão.','pensa'],
+ ['Você','A praça encheu de novo. Ninguém agradece. E nem precisa.','pensa'],
+ ['Você','A sirene desliga e fica o silêncio. É nele que a farda pesa.','pensa'],
+ ['Você','Foram anos numa mesa de cozinha, de madrugada, errando questão.','pensa']]);
 /* CEO 09/11 00h: tragedia (moleques no barro do baile), beleza da cidade e o policial intercalados; quem e citado esta no quadro; plano fixo */
 var EST_MK=['corpos','morro','viatura','marlene','junior','prof','uno','praca','poente','viatura2'];/* CEO 09/11 03h50: sem corpos2 ("de longe" era a fala do Professor) e sem marlene2 (cachorro e a fala da estrada) */
 /* ABERTURA (CEO 08/11 22h48): viatura parada, radio no intervalo da VALE FM, o heroi troca pra Central, desliga, 2 s de silencio e entra a trilha */
@@ -18000,7 +17701,7 @@ DIALOGO.estAbre=D('eab',[
  ['Central','Ocorrência da Dona Marlene encerrada. Cachorro em casa, ninguém ferido. Bom trabalho, Doze.','radio'],
  ['Você','QSL, Central.','npc'],
  ['Central','Doze... primeiro plantão é sempre o mais longo. Os outros a gente esquece. Esse não.','radio']]);
-var EST_JR=[6.12,46.805,Math.PI/2,0,0,.65],EST_JC=[[1.2,1.5,43.0],[1.45,1.5,43.45],[6.25,.95,46.75]],EST_PC=[[65.2,-2.35,63.4],[65.5,-2.35,63.2],[71.8,-3.2,66.2]],EST_UC=[[-5.2,1.9,-8.2],[-5.2,1.85,-7.6],[0,.75,0]],EST_QC=[[24.2,1.7,-42.2],[23.6,1.7,-41.6],[13,1.2,-32]];
+var EST_JR=[6.28,46.75,Math.PI/2,0,0,.65],EST_JC=[[1.2,1.5,43.0],[1.45,1.5,43.45],[6.25,.95,46.75]],EST_PC=[[65.2,-2.35,63.4],[65.5,-2.35,63.2],[71.8,-3.2,66.2]],EST_UC=[[-5.2,1.9,-8.2],[-5.2,1.85,-7.6],[0,.75,0]],EST_QC=[[24.2,1.7,-42.2],[23.6,1.7,-41.6],[13,1.2,-32]];
 var EST_MDUR=DIALOGO.estMont.map(function(l){var d=vozDur(lineTxt(l))||wordsDur(l.texto);return Math.round(Math.max(5.5,.5+d+1.2)*10)/10;}),EST_MLEN=EST_MDUR.reduce(function(a,b){return a+b;},0);/* s de cada plano: fala entra .5 s depois do corte, voz dublada inteira + 1,2 s de respiro (minimo 5,5) */
 /* moleques no barro na frente do baile (so na cutscene): [x,z,yaw do corpo] fixos; camera dos planos novos: {a,at,v} em mundo ou no carro (car:true) */
 var EST_LCD=[.05,1.243,-.815];/* visor do radio no painel, no carro */
@@ -18032,7 +17733,7 @@ function estMontPlano(i){/* monta o plano i: ator no lugar, camera fixa {a,b,at,
     c=k==='marlene'?{a:[d[0]-7.4,1.9,d[1]+3.6],b:[d[0]-6.9,1.85,d[1]+3.2],at:[d[0]-.6,.95,d[1]+.4],v:36,n:n}:{a:[d[0]-5.6,1.45,d[1]+2.6],at:[d[0]-.6,.95,d[1]+.35],v:32,n:n};
   }else if(k==='junior'){/* Junior sentado na cadeira do Mercadinho, olhando pro chao */
     n=estMontNovo('junior',function(){return addNPC('junior',{},{x:BP.caixa[0],z:BP.caixa[1],yaw:0,mode:'idle',name:'Júnior'});});
-    cadeiraVolta();/* a escolta pode ter levado a cadeira ate a Marlene: sem isto o Junior sentaria no ar */var jx=EST_JR[0],jz=EST_JR[1];n.hold=true;n.idleHold=false;n.sit=true;n.mode='idle';n.down=n.surrendered=false;n.m.visible=true;n.yaw=EST_JR[2];cap2Place(n,[jx,jz]);n.m.position.y-=.014;
+    cadeiraVolta();/* a escolta pode ter levado a cadeira ate a Marlene: sem isto o Junior sentaria no ar */var jx=EST_JR[0],jz=EST_JR[1];n.hold=true;n.idleHold=false;n.sit=true;n.mode='idle';n.down=n.surrendered=false;n.m.visible=true;n.yaw=EST_JR[2];cap2Place(n,[jx,jz]);
     u=n.m.userData;if(u.gl){var G=u.gl;G.mx.stopAllAction();G.cur='';glPlay(u,'Sitting');var sa=G.a.Sitting;if(sa){sa.time=sa.getClip().duration;sa.paused=true;}G.mx.update(0);G.s.position.y=G.baseY;}/* CEO 10/11 'Junior sentado errado': tinha +20 cm de sobra de quando sentava num degrau; flutuava 18 cm acima do assento com o pe 22 cm no ar. Sem a sobra a sola encosta no chao e a coxa no assento (catraca mede a malha) */
     c={a:EST_JC[0],b:EST_JC[1],at:EST_JC[2],v:30,n:n,jr:u.gl};
   }else if(k==='prof'){/* Professor no sofa dele, no subsolo, de meio perfil e distante */
@@ -18066,7 +17767,7 @@ function estMont(t,dt){/* t negativo: plano da montagem */
   var c=EST.mc,b=c.b||c.a;if(c.pos){C0.x=c.pos[0];C0.z=c.pos[1];C0.yaw=c.pos[2];placeCar();}
   camera.position.set((c.a[0]+b[0])/2,(c.a[1]+b[1])/2,(c.a[2]+b[2])/2);/* plano fixo */camera.lookAt(c.at[0],c.at[1],c.at[2]);
   var fov=estFov(c.v);if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix();}camera.rotation.z=0;
-  if(c.jr){tecidoSentado(c.n,1);var nk=c.jr.s.getObjectByName('Neck');if(nk){if(!c.nq)c.nq=nk.quaternion.clone();nk.quaternion.copy(c.nq);}c.jr.mx.update(dt);if(nk)nk.rotateX(EST_JR[5]);}/* Junior sentado, cabeca baixa */
+  if(c.jr){var nk=c.jr.s.getObjectByName('Neck');if(nk){if(!c.nq)c.nq=nk.quaternion.clone();nk.quaternion.copy(c.nq);}c.jr.mx.update(dt);if(nk)nk.rotateX(EST_JR[5]);}/* Junior sentado, cabeca baixa */
   if(EST.dog&&dt>0){animDog(DOGM,dt,0,'feliz');DOGM.position.y+=surfaceY(DOGM.position.x,DOGM.position.z); }
   var assuntos=c.n?[c.n.m]:c.viatura&&P1.visible?[P1]:[];if(EST.dog)assuntos.push(DOGM);cenaEnquadra(assuntos);
 }
@@ -18203,7 +17904,7 @@ function estRestaura(){
 }
 var FALA_POETICA='A';/* fala poetica do fim (Gabinete 08/11): A no ar desde 09/11 03h50 (B repetia o cachorro da estrada e o "sem nome" dos moleques; C repete farda, sistema e rua); troca em 1 linha */
 DIALOGO.estradaPoe=D('ep',[
- ['Você','A noite cai no Vale de Abril. E alguém tem que ficar acordado pra ela cair em paz.','pensa'],
+ ['Você','Vale a pena vestir essa farda.','pensa'],/* CEO 25/11: a frase da farda fecha o jogo sozinha */
  ['Você','Ninguém vai lembrar do meu nome. Mas hoje, numa casa simples, um cachorro dorme no colo de quem ama.','pensa'],
  ['Você','O sistema me deu uma farda. A rua me deu um motivo.','pensa']]);
 var FIM_LOGO=16;/* fim, em s contados depois dos 4 planos (CEO 08/11): foto real 0-8, Obrigado por jogar 8-12, logo 12-16, pop-up depois */
@@ -18300,7 +18001,7 @@ function cap2Target(){
   return null;
 }
 function cap2Save(n){return {n:n,x:n.x,z:n.z,y:n.y,yaw:n.yaw,mode:n.mode,hold:n.hold,down:n.down,visible:n.m.visible,kind:n.kind,name:n.name,path:n.path,sp:n.sp,prot:PROT[n.id],surrendered:n.surrendered,hp:n.hp};}
-function cap2Restore(o){var n=o.n;if(n.id==='marlene'||n.id==='junior')tecidoSentado(n,0);['x','z','y','yaw','mode','hold','down','kind','name','path','sp','surrendered','hp'].forEach(function(k){n[k]=o[k];});n.m.visible=o.visible;n.cap2Safe=n.cap2Body=n.cap2Enemy=false;n.fleeT=0;n.m.rotation.set(0,n.yaw,0);n.m.position.set(n.x,n.y,n.z);if(o.prot)PROT[n.id]=o.prot;else delete PROT[n.id];}
+function cap2Restore(o){var n=o.n;if(n.id==='marlene')tecidoSentado(n,0);['x','z','y','yaw','mode','hold','down','kind','name','path','sp','surrendered','hp'].forEach(function(k){n[k]=o[k];});n.m.visible=o.visible;n.cap2Safe=n.cap2Body=n.cap2Enemy=false;n.fleeT=0;n.m.rotation.set(0,n.yaw,0);n.m.position.set(n.x,n.y,n.z);if(o.prot)PROT[n.id]=o.prot;else delete PROT[n.id];}
 function npcY(n){if(n.sub)return GALPAO.piso.y;var p=BAILE.stage;if(p&&n.id==='mc'&&Math.abs(n.x-p[0])<3.5&&Math.abs(n.z-p[2])<6)return p[1];return surfaceY(n.x,n.z);} /* CEO 07/11: quem mora no subterraneo nunca sobe pra rua */
 function cap2Place(n,p){n.x=p[0];n.z=p[1];n.y=npcY(n);n.m.position.set(n.x,n.y,n.z);n.m.rotation.set(0,n.yaw,0);}
 function cap2Stall(){
@@ -18336,7 +18037,7 @@ function cap2Line(l){
   if(inner)SUBS[SUBS.length-1].el.style.fontStyle='italic';
 }
 function cap2Stage(stage){
-  var c=S.marlene;c.stage=stage;if(['morte','passante','pensamento'].indexOf(stage)<0){c.sentaTroncoX=null;c.entradaCadeira=null;tecidoSentado(NPCBY.marlene,0);}if(NPCBY.marlene)NPCBY.marlene.esq=null;c.t=0;c.line=-1;P.vx=P.vz=0;
+  var c=S.marlene;c.stage=stage;if(['mal','morte','passante','pensamento'].indexOf(stage)<0)tecidoSentado(NPCBY.marlene,0);if(NPCBY.marlene)NPCBY.marlene.esq=null;c.t=0;c.line=-1;P.vx=P.vz=0;
   S.phase=['escolta','tiro','volta','mal'].indexOf(stage)>=0?'play':'cap2';
   document.body.classList.toggle('cs',S.phase==='cap2');$('cut').classList.toggle('on',S.phase==='cap2');if(S.phase==='cap2')cenaLivre(stage==='convite'?CENA_LIVRE.casinha():CENA_LIVRE.mercado());
   if(stage==='entrada'){sfx('moto');sfx('scream');cap2Line(DIALOGO.cap2.medo[0]);}
@@ -18346,8 +18047,7 @@ function cap2Stage(stage){
   if(stage==='mal'){
     document.body.classList.add('cap2quiet');c.quiet=c.silencio=true;
     var mn=NPCBY.marlene,cxm=marCaixas(mn.x,mn.z,4);if(c.trazCad||!cadeiraOk(CAP2.bench[0],CAP2.bench[1])||!marReto(mn.x,mn.z,CAP2.bench[0],CAP2.bench[1],cxm)){c.trazCad=false;var q=cadeiraOk(mn.x,mn.z)?[mn.x,mn.z]:null;for(var r=.25;!q&&r<=2;r+=.25)for(var a=0;a<16&&!q;a++){var x=mn.x+Math.cos(a*Math.PI/8)*r,z=mn.z+Math.sin(a*Math.PI/8)*r;if(cadeiraOk(x,z)&&marReto(mn.x,mn.z,x,z,cxm))q=[x,z];}cadeiraPara(q?q[0]:mn.x,q?q[1]:mn.z);}/* CEO 09/11 03h20: cadeira tapada = a cadeira vem ate ela */
-    c.frenteCadeira=[CAP2.bench[0]-.60,CAP2.bench[1]];
-    c.seatSpeed=dist2(mn.x,mn.z,c.frenteCadeira[0],c.frenteCadeira[1])/1.20;
+    c.seatSpeed=dist2(NPCBY.marlene.x,NPCBY.marlene.z,CAP2.bench[0],CAP2.bench[1])/1.8;
     cap2Line(DIALOGO.cap2.mal[0]);
     setObj('Ficar com a Dona Marlene');setMark(null);c.stayed=false;
   }
@@ -18554,41 +18254,25 @@ function cap2Pose(dt){
     }
     n.emo='medo';n.talk=S.time+1;
   }
-  if(c.stage==='mal'&&c.t-dt<1.35){
-    cap2Move(n,c.frenteCadeira,c.seatSpeed,Math.min(dt,Math.max(0,1.35-(c.t-dt))));
-    n.m.rotation.y=n.yaw+dAng(n.yaw,Math.PI/2)*rsm(Math.min(1,c.t/1.30));
+  if(c.stage==='mal'&&c.t-dt<2){
+    cap2Move(n,CAP2.bench,c.seatSpeed,Math.min(dt,Math.max(0,2-(c.t-dt))));
     if(G){n.m.updateMatrixWorld(true);_gT.set(-.04,.68,-.18);n.m.localToWorld(_gT);G.ua.getWorldPosition(_gS);glAim(G.ua,_gD.copy(_gT).sub(_gS).normalize());G.la.getWorldPosition(_gS);glAim(G.la,_gD.copy(_gT).sub(_gS).normalize());}
-    if(c.t<1.35)return;
+    if(c.t<2)return;
   }
   if(c.stage==='mal'||c.stage==='morte'||c.stage==='passante'||c.stage==='pensamento'){
-    var entrando=G&&c.stage==='mal'&&c.t<2.25;
-    if(entrando&&!c.entradaCadeira){
-      var ossos=[];G.s.traverse(function(b){if(b.isBone)ossos.push([b,b.quaternion.clone(),b.position.clone()]);});
-      c.entradaCadeira={p:n.m.position.clone(),q:n.m.quaternion.clone(),ossos:ossos};
-    }
-    var apoio=c.stage==='mal'?rsm((c.t-1.35)/.9):1;
-    if(c.frenteCadeira&&c.stage==='mal'){n.x=c.frenteCadeira[0]+(CAP2.bench[0]-c.frenteCadeira[0])*apoio;n.z=c.frenteCadeira[1]+(CAP2.bench[1]-c.frenteCadeira[1])*apoio;}
     if(G){glPlay(n.m.userData,'Sitting');G.a.Sitting.time=G.a.Sitting.getClip().duration;G.mx.update(0);}
     n.m.position.set(n.x,n.y-CAP2.seatDrop,n.z);n.m.rotation.set(0,Math.PI/2,0);if(G)sentaCadeira(n,G);
-    if(G){var ventre=G.s.getObjectByName('Spine2');if(ventre&&c.sentaTroncoX==null)c.sentaTroncoX=ventre.rotation.x;}
+    if(c.stage==='mal'&&G){n.m.updateMatrixWorld(true);[[G.ual,G.lal,-.12],[G.ua,G.la,.12]].forEach(function(a){_gT.set(a[2],1.05,-.18);n.m.localToWorld(_gT);a[0].getWorldPosition(_gS);glAim(a[0],_gD.copy(_gT).sub(_gS).normalize());a[1].getWorldPosition(_gS);glAim(a[1],_gD.copy(_gT).sub(_gS).normalize());});}
     if(c.stage!=='mal'){
       // desmaio: tomba em 2.5 s, volta a partir de 5 s; passante e pensamento ja sentada e viva
-      var t=c.stage==='morte'?(c.t<5?rsm(c.t/2.5):1-rsm((c.t-5)/1.5)):0;if(ventre)ventre.rotation.x=c.sentaTroncoX+.18*t;
+      var t=c.stage==='morte'?(c.t<5?rsm(c.t/2.5):1-rsm((c.t-5)/1.5)):0;n.m.rotation.x=.12*t;n.m.rotation.z=.08*t;
       if(G){var head=G.s.getObjectByName('Head');if(head)head.rotation.x=.4*t;}
       if(f)f.parts.forEach(function(p){p.scale.y=p.userData.sy*(t>.5?.08:1);});
     }
-    if(G){var mal=c.stage==='mal',bx=CAP2.bench[0],bz=CAP2.bench[1],chao=surfaceY(bx,bz);
-      sentaAlvo(G.ua,G.la,G.pm,bx-(mal?.396:.43),chao+(mal?.649:.59),bz-(mal?.07:.135),0,-.8,-.6);}
-    if(entrando){
-      var de=c.entradaCadeira,k=apoio;
-      n.m.position.lerp(de.p,1-k);n.m.quaternion.slerp(de.q,1-k);
-      de.ossos.forEach(function(v){v[0].quaternion.slerp(v[1],1-k);v[0].position.lerp(v[2],1-k);});
-      tecidoSentado(n,k);
-    }else c.entradaCadeira=null;
   }
 }
 /* CEO 08/11 23h55 "ta sentando dentro da cadeira": o clip Sitting deixa quadril abaixo do assento e canela vertical dentro dele.
-   Classe: quadril acima do assento; os joelhos dobram e as solas ficam no chão à frente da borda. */
+   Classe: quadril no topo do assento (+7 cm), coxa pra frente, IK de 2 ossos leva o pe ao chao na frente da borda; olhar pra frente. */
 var _sk=new THREE.Vector3(),_sf=new THREE.Vector3(),_sh=new THREE.Vector3(),_sw=new THREE.Vector3(),_sp=new THREE.Vector3();
 function tecidoSentado(n,valor){
   var m=n&&n.m.userData.profMesh,i=m&&m.morphTargetDictionary&&m.morphTargetDictionary[n.id==='junior'?'calcaSentada':'saiaSentada'];
@@ -18598,34 +18282,22 @@ function sentaCadeira(n,G){
   tecidoSentado(n,1);
   var hip=G.s.getObjectByName('Hips');if(!hip)return;n.m.updateMatrixWorld(true);
   var ry=n.m.rotation.y,fx=-Math.sin(ry),fz=-Math.cos(ry),chao=surfaceY(CAP2.bench[0],CAP2.bench[1]),top=chao+CAP2.seatTop;
-  hip.getWorldPosition(_sh);n.m.position.x+=CAP2.bench[0]+fx*.13-_sh.x;n.m.position.z+=CAP2.bench[1]+fz*.13-_sh.z;n.m.position.y+=top+.105-_sh.y;n.m.updateMatrixWorld(true);
+  hip.getWorldPosition(_sh);n.m.position.x+=CAP2.bench[0]+fx*.05-_sh.x;n.m.position.z+=CAP2.bench[1]+fz*.05-_sh.z;n.m.position.y+=top+.09-_sh.y;n.m.updateMatrixWorld(true);
   ['Left','Right'].forEach(function(lado){
     var up=G.s.getObjectByName(lado+'UpLeg'),lo=G.s.getObjectByName(lado+'Leg'),ft=G.s.getObjectByName(lado+'Foot');if(!up||!lo||!ft)return;
-    up.getWorldPosition(_sh);var fd=Math.abs(CAP2.bench[0]-CAP2.seatFront)+.07,px=_sh.x+fx*fd,pz=_sh.z+fz*fd,py=chao+(lado==='Left'?.013:.034);
-    sentaAlvo(up,lo,ft,px,py,pz,fx,0,fz);
-    if(ft.children[0])glAim(ft,_sw.set(fx,-.25,fz).normalize());
-    var m=n.m.userData.profMesh;
-    if(lado==='Left'&&m&&m.geometry.attributes.position.count===31551){
-      /* Dois pontos da sola da Marlene, um de cada lado. O apoio muda ao girar o sapato. */
-      var dy=chao-Math.min(m.boneTransform(24854,_sf).applyMatrix4(m.matrixWorld).y,m.boneTransform(26370,_sf).applyMatrix4(m.matrixWorld).y);
-      if(Math.abs(dy)>.002){sentaAlvo(up,lo,ft,px,py+clamp(dy,-.03,.03),pz,fx,0,fz);if(ft.children[0])glAim(ft,_sw.set(fx,-.25,fz).normalize());}
-    }
+    up.getWorldPosition(_sh);lo.getWorldPosition(_sk);ft.getWorldPosition(_sf);
+    var l1=_sh.distanceTo(_sk),l2=_sk.distanceTo(_sf),fd=Math.abs(CAP2.bench[0]-CAP2.seatFront)+.07;/* pe 12 cm alem da borda do assento (quadril ja 5 cm a frente) */
+    _sf.set(_sh.x+fx*fd,chao+.09,_sh.z+fz*fd);
+    _sp.subVectors(_sf,_sh);var d=Math.min(_sp.length(),l1+l2-.01);_sp.normalize();_sf.copy(_sh).addScaledVector(_sp,d);
+    var a=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-a*a));
+    _sw.set(fx,0,fz).addScaledVector(_sp,-(fx*_sp.x+fz*_sp.z)).normalize();/* joelho dobra pra frente e pra cima */
+    _sk.copy(_sh).addScaledVector(_sp,a).addScaledVector(_sw,h);
+    glAim(up,_sw.subVectors(_sk,_sh).normalize());lo.getWorldPosition(_sh);glAim(lo,_sw.subVectors(_sf,_sh).normalize());
+    var toe=ft.children[0];if(toe){_sw.set(fx,-.25,fz).normalize();glAim(ft,_sw);}
   });
-  if(G.lal)glAim(G.lal,_sw.set(fx,-.38,fz).normalize());
 }
-function sentaAlvo(up,lo,tip,x,y,z,bx,by,bz){
-  if(!up||!lo||!tip)return;
-  up.getWorldPosition(_sh);lo.getWorldPosition(_sk);tip.getWorldPosition(_sf);
-  var l1=_sh.distanceTo(_sk),l2=_sk.distanceTo(_sf);_sf.set(x,y,z);_sp.subVectors(_sf,_sh);
-  var d=Math.min(_sp.length(),l1+l2-.01);if(d<.001)return;_sp.normalize();_sf.copy(_sh).addScaledVector(_sp,d);
-  var a=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-a*a));
-  _sw.set(bx,by,bz).addScaledVector(_sp,-(bx*_sp.x+by*_sp.y+bz*_sp.z)).normalize();
-  _sk.copy(_sh).addScaledVector(_sp,a).addScaledVector(_sw,h);
-  glAim(up,_sw.subVectors(_sk,_sh).normalize());lo.getWorldPosition(_sh);glAim(lo,_sw.subVectors(_sf,_sh).normalize());
-}
-
-function glSola(raiz){/* mede a malha visível, inclusive quando o corpo HD é irmão do esqueleto */
-  var y=Infinity,v=new THREE.Vector3();raiz.updateMatrixWorld(true);raiz.traverseVisible(function(o){if(!o.isSkinnedMesh)return;var p=o.geometry.attributes.position;for(var i=0;i<p.count;i++){o.boneTransform(i,v);v.applyMatrix4(o.matrixWorld);if(v.y<y)y=v.y;}});return y;}
+function glSola(G){/* y mais baixo da malha com pele (sola do pe), no mundo */
+  var y=1e9,v=new THREE.Vector3();G.s.updateMatrixWorld(true);G.s.traverse(function(o){if(!o.isSkinnedMesh)return;var p=o.geometry.attributes.position;for(var i=0;i<p.count;i++){o.boneTransform(i,v);v.applyMatrix4(o.matrixWorld);if(v.y<y)y=v.y;}});return y;}
 function cap2Camera(){
   var c=S.marlene,n=NPCBY.marlene;
   if(S.phase!=='cap2')return;
@@ -18754,7 +18426,7 @@ function miniDuel(done){
   card();
 }
 /* ---------- reset ---------- */
-function resetGame(skipCut){praiaLimpa();rondaTick(0,0,false,false);cambInterrompe();S.cambCena=null;reparaFrota();sacosReset();soltosReset();if(PVD)PVD.volta=null;SOSSEGO.t=SOSSEGO.n=0;SOSSEGO.avisou=false;hudSubsLimpa(true);HUD_TELA_DICA={tempo:0,lido:0,cena:false,dica:false};$('hint').classList.remove('hud-espera');$('prompt').classList.remove('hud-espera');radioPara();RADIO.id=null;RADIO.espera=0;RADIO.falhas=0;RADIO.semSinal=false;controleReset();controleFecha();placasReset();reconstroi();if(MR.motos){MR.lane=null;mrNasce();}/* jogo novo: motos espalhadas pela cidade, faixas com a cidade pronta */if(EST.devRestaura){EST.devRestaura=false;estRestaura();}deathClear();QUEST_CK=null;fcCenaLimpa();lifeClean();finalLimpa();casaFecha();EST.seen=false;if(!EST.on){EST.fim=false;EST.pop=false;$('estFim').hidden=true;}profFim();pedagioReset();fcDevolve();muretaReset();REDE.voltou=false;redeVolta(true);S.redeForte=false;
+function resetGame(skipCut){praiaLimpa();rondaTick(0,0,false,false);cambInterrompe();S.cambCena=null;reparaFrota();sacosReset();soltosReset();SOSSEGO.t=SOSSEGO.n=0;SOSSEGO.avisou=false;hudSubsLimpa(true);HUD_TELA_DICA={tempo:0,lido:0,cena:false,dica:false};$('hint').classList.remove('hud-espera');$('prompt').classList.remove('hud-espera');radioPara();RADIO.id=null;RADIO.espera=0;RADIO.falhas=0;RADIO.semSinal=false;controleReset();controleFecha();placasReset();reconstroi();if(MR.motos){MR.lane=null;mrNasce();}/* jogo novo: motos espalhadas pela cidade, faixas com a cidade pronta */if(EST.devRestaura){EST.devRestaura=false;estRestaura();}deathClear();QUEST_CK=null;fcCenaLimpa();lifeClean();finalLimpa();casaFecha();EST.seen=false;if(!EST.on){EST.fim=false;EST.pop=false;$('estFim').hidden=true;}profFim();pedagioReset();fcDevolve();muretaReset();REDE.voltou=false;redeVolta(true);S.redeForte=false;
   cap2Reset();if(S.uno)unoSai();/* reset dentro do Uno devolve a viatura */
   if(S.q34){scene.remove(S.q34.car);S.q34.emb.forEach(function(b){b.n.m.visible=false;b.n.down=true;var i=SBB.indexOf(b);if(i>=0)SBB.splice(i,1);});q34EmbTira();}
   toinhoLimpa();CARRY.ser=null;CAMB.dentro.length=0;if(NPCBY.junior)NPCBY.junior.m.visible=false;
@@ -18949,7 +18621,7 @@ function prewarmGPU(force){ if(LOADING&&LOADGO)return; /* A entrada ja aquece se
   if(LOADING&&CC.geo&&ARMA.src&&!FC_ASSET)fcAssets();
   if(LOADING&&GENTE&&HD.vigia&&!GP.vigiaPortao)modeloVigiaPortao();
   // A aproximação da tampa já alcança o rosto do Professor no subsolo. Prepare o mesmo material durante a carga.
-  if(LOADING){[NPCBY.chefe,NPCBY.carlos].forEach(function(n){if(n&&n.m.userData.profMesh)rigLiga(n,false);});}luzTick();
+  if(LOADING&&NPCBY.chefe&&NPCBY.chefe.m.userData.profMesh)rigLiga(NPCBY.chefe,false);luzTick();
   if(LOADING&&!force&&!FATX){if(!FAT.on)fatIni(true,true);return;} /* na carga o preparo vai em fatias */
   var state=[], mats=new Set(),tex=new Set(),target=renderer.getRenderTarget();
   function texture(t){if(Array.isArray(t)){t.forEach(texture);return;}if(t&&t.isTexture&&t.version>0&&t.image&&t.image.complete!==false&&!tex.has(t)){tex.add(t);renderer.initTexture(t);}}
@@ -19851,19 +19523,9 @@ function smokeUpdate(dt){SMK.forEach(function(p){
   var sc=(.05+.32*Math.sqrt(Math.min(1,p.t)))*(p.fc||1);p.s.scale.set(sc,sc,sc);p.s.material.opacity=.75*Math.pow(1-Math.min(1,p.t),1.6);
 });}
 function draw(on){
-  PVD.saquePendente=null;if(on===true||on===undefined&&!CB.drawn)document.dispatchEvent(new CustomEvent('pvsaquepedido'));
   if(on===undefined)on=!CB.drawn;
   if(S.phase!=='play'||S.inCar||cenaOn()||on&&(P.mt||P.arc||P.vaultT>0||GP.trans?.janela)){on=false;}
-  var was=CB.drawn;CB.drawn=!!on;if(!CB.drawn){CB.aimHold=false;CB.aimT=0;CB.fireHold=false;}GUNUP=CB.drawn&&CB.aimHold;if(was!==CB.drawn){
-    if(CB.drawn)PVD.saquePendente={frame:renderer.info.render.frame,erros:_errN,dono:S,tempo:S.time};
-    if(CB.drawn&&PVD.volta&&!PVD.volta.lida&&PVD.volta.dono===S&&CB.hp>0){
-      var volta=PVD.volta,etapa=S.step;volta.lida=true;
-      document.dispatchEvent(new CustomEvent('pvsaque',{detail:{tipo:volta.tipo,anterior:_last,valida:function(){return PVD.volta===volta&&volta.dono===S&&S.phase==='play'&&S.step===etapa&&CB.hp>0&&!lifeActive();}}}));
-    }else if(CB.drawn){
-      var dono=S;document.dispatchEvent(new CustomEvent('pvsaque',{detail:{tipo:'normal',anterior:_last,valida:function(){return dono===S&&S.phase==='play'&&CB.hp>0&&!lifeActive();}}}));
-    }
-    sfxDraw(CB.drawn);
-  }
+  var was=CB.drawn;CB.drawn=!!on;if(!CB.drawn){CB.aimHold=false;CB.aimT=0;CB.fireHold=false;}GUNUP=CB.drawn&&CB.aimHold;if(was!==CB.drawn)sfxDraw(CB.drawn);
 }
 function sfxDraw(on){/* CEO 07/11: sacar soava "tampa de garrafa"; agora sacar = reload de verdade (pente batendo + ferrolho), guardar = couro + trava */
   if(!aok())return;
@@ -21220,7 +20882,7 @@ function lifeStart(mouseAnterior){
   if(S.lifeLast!=null&&S.time-S.lifeLast<60){lifeFail(mouse);return true;}
   var drawn=CB.drawn;
   if(!quizRun({n:10,dif:'facil',tempo:6,titulo:'LUTA PELA VIDA',tema:'vida',vidaQuiz:true,done:function(r){if(r.right>=7){lifeRise();if(mouse)retomaMouse();}else lifeFail(mouse);}}))return false;
-  PVD.volta=null;S.lifeLast=S.time;S.life={active:true,pulse:0,breath:0};S.lifePose=0;CB.hp=0;CB.drawn=drawn;CB.fireHold=false;
+  S.lifeLast=S.time;S.life={active:true,pulse:0,breath:0};S.lifePose=0;CB.hp=0;CB.drawn=drawn;CB.fireHold=false;
   P.vx=P.vz=P.vy=0;P.crouch=false;P.arc=P.mt=null;P.jb=-9;document.body.classList.add('life');if(!SELFTEST&&!lifeStart.audio){lifeStart.audio=true;AUDIO_EMBED.load('life-breath','audio/sfx/_packs/oga-creature-80/breath.ogg');}sfx('corpoChao');return true;
 }
 function lifeCrawl(dt,inp){
@@ -21238,11 +20900,10 @@ function lifeTick(dt){
   if(l.breath<=0){l.breath=2.1;if(aok()&&!smp('life-breath',.2,.9)){sfx('grunhido',.4);nburst(450,.5,.65,.055,0,'lowpass');}}
 }
 function lifeRise(){
-  if(!lifeActive())return;PVD.volta={dono:S,tipo:'ergueu'};S.life.active=false;CB.hp=30;CB.invulUntil=S.time+3;document.body.classList.remove('life');P.vx=P.vz=0;
+  if(!lifeActive())return;S.life.active=false;CB.hp=30;CB.invulUntil=S.time+3;document.body.classList.remove('life');P.vx=P.vz=0;
   say('Você: Ainda não.','npc',2,'Você',true);sfx('ok');
 }
 function lifeFail(mouse){
-  PVD.volta={dono:S,tipo:'retentou'};
   lifeClean();S.deaths=(S.deaths||0)+1;
   if(S.mpHostil||S.marlene&&S.marlene.active||q34EmQuest()){S.deaths--;sbxDie(true,mouse);}
   else failRun('Sua vida acabou. A missão fica para o próximo plantão.',mouse);
@@ -21355,7 +21016,7 @@ function quizScore(ok){
 var ITENS={oculos:{n:'Óculos de leitura',s:'cabeca',ic:'👓',b:{foco:2}},bone:{n:'Boné da corporação',s:'cabeca',ic:'🧢',b:{sangue:1}},
   colete:{n:'Colete leve',s:'corpo',ic:'🦺',b:{sangue:2}},jaqueta:{n:'Jaqueta de couro',s:'corpo',ic:'🧥',b:{memoria:1,foco:1}},
   caderno:{n:'Caderno de resumos',s:'acess',ic:'📓',b:{memoria:2}},relogio:{n:'Relógio de prova',s:'acess',ic:'⌚',b:{foco:1}}};
-var ATRS={foco:['Foco','+0,5 s para responder cada questão'],memoria:['Memória','+10% de Preparo em cada acerto'],sangue:['Sangue frio','erro tira 15% menos tempo do relógio']};
+var ATRS={foco:['Foco','+1 s para responder cada questão'],memoria:['Memória','+10% de Preparo em cada acerto'],sangue:['Sangue frio','erro tira 15% menos tempo do relógio']};
 var SLOTS={cabeca:'Cabeça',corpo:'Corpo',acess:'Acessório'};
 function rpgNew(){return {lvl:1,xp:0,pts:0,at:{foco:0,memoria:0,sangue:0},eq:{cabeca:null,corpo:null,acess:null},inv:['relogio']};}
 var RPG=rpgNew();
@@ -22011,9 +21672,8 @@ function fx(dt,t){
   var bp=Math.pow(Math.max(0,Math.sin(t*13.4)),4),fl=.9+.1*Math.sin(t*37)*Math.sin(t*11);
   if(LP.neonA)LP.neonA.intensity=2.4*fl;
   if(LP.neonB)LP.neonB.intensity=2.0;
-  if(LP.baile1){LP.baile1.intensity=S.baileFim?0:3.8+.6*Math.sin(t*.45);LP.baile1.color.setHSL((.9+.06*Math.sin(t*.11))%1,1,.55);}
-  if(LP.baile2){LP.baile2.intensity=S.baileFim?0:3.4+.5*Math.sin(t*.38+2);LP.baile2.color.setHSL(.55+.07*Math.sin(t*.09+1),1,.55);}
-  bbTick(t);
+  if(LP.baile1)LP.baile1.intensity=S.baileFim?0:3.4+bp*1.6;
+  if(LP.baile2)LP.baile2.intensity=S.baileFim?0:3.2+(1-bp)*.8;
   if(LP.baile3)LP.baile3.intensity=S.baileFim?0:2.4;
   /* painel de LED do baile */
   var intervalo=PALCO_EFEITOS[BAT].intervaloLed;
@@ -25604,7 +25264,7 @@ T('matar o fujao 07/11: game over em print de imprensa variada, retry religa a f
   T('pele: comunidade e baile mais escuros, gangue branco e preto (CEO 55fbce932f)',function(){function lum(h){return ((h>>16)&255)*.3+((h>>8)&255)*.59+(h&255)*.11;}var cs=NPCS.filter(function(n){return /^(comu|dan)/.test(n.id||'');}).map(function(n){return n.m.userData.cfg.skin;});tr(cs.length>=3,'sem comunidade');var m=cs.reduce(function(a,b){return a+lum(b);},0)/cs.length;tr(m<130,'comunidade clara '+m);tr(lum(GANG_SK[0])>180&&lum(GANG_SK[1])<60,'gangue sem contraste');});
   T('pistola gostosa: acerto confirmado toca toc, cabeca toca ding (CEO 55fbce932f)',function(){var n0=HITSND.n;hitZona('peito');hitZona('cabeca');eq(HITSND.n-n0,2);});
   T('LUTA 07/11: 1 questao por vez, 10 s por circulo, errou vira, resultado com professor no fim',function(){
-  T('CEO 08/11: Professor civil, suspeito e heroi preservam HD',function(){eq(hdDe({id:'chefe'}),HD.professor||null);/* professor-meshy */eq(hdDe({kind:'suspeito'}),HD.suspeito);eq(hdDe({kind:'bandido'}),HD.suspeito);eq(hdDe({id:'pm1'}),HD.policial);});
+  T('CEO 08/11: Professor civil, suspeito e heroi preservam HD',function(){eq(hdDe({id:'chefe'}),HD.professor||null);eq(hdDe({kind:'suspeito'}),HD.suspeito);eq(hdDe({kind:'bandido'}),HD.suspeito);eq(hdDe({id:'pm1'}),HD.policial);});
     fresh();var fim=null;lutaStart(function(ok,r){fim={ok:ok,n:r.length};},8);
     tr(S.phase==='luta'&&LUTA.qs.length===8,'nao abriu');var ids=LUTA.qs.map(function(q){return q.id;});tr(new Set(ids).size===8,'questao repetida');
     lutaAns(LUTA.qs[0].a);tr(LUTA.ok===1&&/cima/.test($('luta').className),'acerto nao fica por cima');step(.6);tr(LUTA.i===1,'nao avancou');
@@ -26524,7 +26184,7 @@ function estFinal(){fresh();S.estPend=true;exitCar(true);enterCar();}
     try{var i=EST_MK.indexOf('junior');cadeiraPara(3,44);tr(CAP2.bench[0]!==CADEIRA.x0,'teste nao levou a cadeira');EST.t=estMeio(i);estUpdate(0);estUpdate(1);estUpdate(1);var c=EST.mc,n=c.n,G=n.m.userData.gl,v=new THREE.Vector3(),chao=surfaceY(CAP2.bench[0],CAP2.bench[1]),top=chao+CAP2.seatTop;eq(n.id,'junior','ator');n.m.updateMatrixWorld(true);
       eq(CAP2.bench[0],CADEIRA.x0,'cadeira fora do lugar');G.s.getObjectByName('Hips').getWorldPosition(v);
       tr(Math.abs(v.y-top)<.06,'quadril '+(v.y-top).toFixed(3)+' m do assento');tr(v.x>CAP2.seatFront+.05&&v.x<CAP2.bench[0]+.3&&Math.abs(v.z-CAP2.bench[1])<.1,'quadril fora do assento x '+v.x.toFixed(2));
-      var so=glSola(n.m)-chao;tr(Math.abs(so)<.03,'sola a '+so.toFixed(3)+' m do chao');
+      var so=glSola(G)-chao;tr(Math.abs(so)<.03,'sola a '+so.toFixed(3)+' m do chao');
       ['L','R'].forEach(function(L){G.s.getObjectByName('LowerLeg'+L).getWorldPosition(v);tr(v.y>top-.02||v.x<CAP2.seatFront,'joelho '+L+' dentro do assento '+v.x.toFixed(2)+' '+v.y.toFixed(2));});
     }finally{act.skipCut();estMenuTeste(function(){$('estVolta').click();});}});
   function estMenuTeste(fn){var sv=[LOADING,LOAD0,LOADW,LOADGO],ld=$('load'),cls=ld.className,dsp=ld.style.display,mc=$('mCont'),mch=mc.hidden,r;try{fn();r={menu:ld.classList.contains('menu'),loading:LOADING};}finally{LOADING=sv[0];LOAD0=sv[1];LOADW=sv[2];LOADGO=sv[3];ld.className=cls;ld.style.display=dsp;mc.hidden=mch;$('estFim').hidden=true;}return r;}
@@ -26558,7 +26218,7 @@ function estFinal(){fresh();S.estPend=true;exitCar(true);enterCar();}
     act.skipCut();tr(EST.musOn,'parou cedo');estMenuTeste(function(){$('estVolta').click();});tr(!EST.musOn,'trilha nao parou');});
   T('fim: depois da ultima fala a trilha cruza pro remix de pagode antes do logo (CEO 08/11 23h)',function(){estFinal();act.skipCut();EST.fimT=0;estFimUpdate(0);tr(!EST.remix,'remix antes da ultima fala');EST.fimT=7.3;estFimUpdate(0);tr(EST.remix&&/final-remix\.m4a/.test(EST.remix.src),'nao trocou pro remix');for(var i=0;i<30;i++)estFimUpdate(.1);tr(EST.remix.volume>.6&&EST.mus.volume<.05,'crossfade incompleto '+EST.remix.volume+' '+EST.mus.volume);tr(EST.fimT<12.4||true);estMenuTeste(function(){$('estVolta').click();});});
   T('fim: musica final-tema segue no pop-up e para ao sair pelo Voltar ao menu',function(){estFinal();act.skipCut();tr(EST.musOn&&!$('fimPop').hidden,'trilha parou antes do pop-up');estMenuTeste(function(){$('estVolta').click();});tr(!EST.musOn,'trilha nao parou');});
-  T('fim: fala poetica vem depois da ultima reflexao, em tela preta; FALA_POETICA troca entre A, B e C',function(){var fp0=FALA_POETICA,ult=DIALOGO.estrada[DIALOGO.estrada.length-1].texto;tr(/estudei anos/.test(ult),'ultima reflexao nao e a da farda (CEO 22h35)');
+  T('fim: fala poetica vem depois da ultima reflexao, em tela preta; FALA_POETICA troca entre A, B e C',function(){var fp0=FALA_POETICA,ult=DIALOGO.estrada[DIALOGO.estrada.length-1].texto;tr(/tombou/.test(ult)&&/vestir essa farda/.test(DIALOGO.estradaPoe[0].texto),'final CEO 25/11: estrada fecha no tombou e a farda fica na tela preta');
     try{['B','A','C'].forEach(function(letra){FALA_POETICA=letra;var poe=DIALOGO.estradaPoe[{A:0,B:1,C:2}[letra]];$('fimPoeTxt').textContent='';estFinal();
       var viu=false,antes=false,pausa=true;
       for(var i=0;i<(EST_LEN+EST_MLEN+EST_AB.len)*30+60&&!EST.fim;i++){update(1/30);if(!EST.fim){if($('cl').textContent.indexOf(ult)>=0)viu=true;if($('fimPoeTxt').textContent.indexOf(poe.texto)>=0)antes=true;if(EST.t>=40.4&&EST.t<43.8&&EST.li!==-1)pausa=false;}}
@@ -28135,16 +27795,6 @@ function loadTick(now){if(FAT&&FAT.on){fatTick();return true;}if(LOADTICK&&now-L
   return true;}
 var _last=0,_clk=0,_errN=0,PVD={p0:0,p1:0,t0:0,t1:0};
 function frame(now){colQuadro++;
-  var ini=performance.now();PVD.ultmotor=PVD.motor||0;PVD.ultcarga=PVD.carga||'montando';
-  PVD.carga=!LOADING?'jogo':LOADGO?(LOADGO.revela?'revelando':LOADGO.preparado?'desenho':'preparo'):LOADW?'menu':'montando';
-  var q=S.fcCena;PVD.fcDe=q?(q.log.length?q.log[q.log.length-1].id:'entrada'):null;PVD.fcMsDe=q?Math.round(q.t*1000):0;
-  try{quadroPreviaMedido(now);}finally{PVD.motor=Math.round(performance.now()-ini);q=S.fcCena;PVD.fcAte=q?(q.log.length?q.log[q.log.length-1].id:'entrada'):null;PVD.fcMsAte=q?Math.round(q.t*1000):0;
-    var pend=PVD.saquePendente;if(pend){if(pend.dono!==S||!CB.drawn)PVD.saquePendente=null;
-      else if(_errN!==pend.erros||(!pausado()&&S.phase==='play'&&S.time>pend.tempo&&renderer.info.render.frame!==pend.frame)){PVD.saquePendente=null;document.dispatchEvent(new CustomEvent('pvsaqueframe',{detail:_errN===pend.erros}));}}
-    if((PVD.fcDe||PVD.fcAte)&&!document.hidden&&document.hasFocus()&&(!PVD.fcPico||PVD.motor>PVD.fcPico.ms))PVD.fcPico={ms:PVD.motor,de:PVD.fcDe||'fora',ate:PVD.fcAte||'fora',t0:PVD.fcMsDe,t1:PVD.fcMsAte};
-  }
-}
-function quadroPreviaMedido(now){
   if(SELFTEST||QS.get('shots')==='quiz2')return; /* ponytail: testes dirigem update/render; o loop concorrente so gastava GPU e tornava o resultado instavel. */
   requestAnimationFrame(frame);PVD.p0=PVD.p1;PVD.p1=renderer.info.programs.length;PVD.t0=PVD.t1;PVD.t1=renderer.info.memory.textures;menuTick(now);
   if(LOADING){try{pollPad(0);}catch(e){}if(loadTick(now)){_last=now;return;}}/* CEO 08/11 "joystick nao funciona no menu": controle lido ja na tela inicial */
@@ -28156,14 +27806,7 @@ function quadroPreviaMedido(now){
   try{pollPad(dt);if(pausado())return;for(var si=0;si<ns;si++)update(dt);dt*=ns;fx(dt,_clk);if(DBGW.DEUS)DBGW.DEUS(dt);render(dt,_clk);
     if(!S.inCar&&Math.abs(P.x-84.5)<2&&P.z>57.5&&P.z<64.5){var a=GP.passagem||(GP.passagem=[]);a.push({ms:rdt*1000,cpu:performance.now()-frameStart,draws:renderer.info.render.calls});if(a.length>240)a.shift();}
   }
-  catch(e){if(_errN++<3)console.error(e);
-    if(DEV&&location.port==='8876'&&(HOSTN==='localhost'||HOSTN==='127.0.0.1')){
-      // Apenas coordenadas do nosso HTML. Mensagem, pilha e URL nunca saem da aba.
-      var m=String(e&&e.stack||'').split(location.pathname+BUSCA+':').slice(1).map(function(s){return /^(\d{1,6}):(\d{1,6})/.exec(s);}).find(Boolean);
-      var tipo=e&&['ReferenceError','TypeError','RangeError'].includes(e.name)?e.name:'Error',onde=m?m[1]+','+m[2]:'0,0',chave=tipo+':'+onde;
-      if(PVD.erroEnvio!==chave&&!(PVD.erroEnvios>=8)){PVD.erroEnvio=chave;PVD.erroEnvios=(PVD.erroEnvios||0)+1;document.dispatchEvent(new CustomEvent('pvfalhaquadro',{detail:tipo+','+onde}));}
-    }
-  }
+  catch(e){if(_errN++<3)console.error(e);}
 }
 
 /* ---------- init ---------- */
