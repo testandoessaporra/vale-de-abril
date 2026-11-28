@@ -166,7 +166,7 @@ function gfxLimpa(x){if(!x||typeof x!=='object'||!x.t||typeof x.t!=='object')ret
   return {b:b|0,q:q|0,t:{pr:n(t.pr,.25,2,1),sh:um(t.sh,[512,1024,2048],1024),shadow:!!t.shadow,ms:um(t.ms,[0,2,4],0),bloom:!!t.bloom,sao:!!t.sao,grass:n(t.grass,0,1,.4),vis:um(t.vis,[0,1,2],2),npc:um(t.npc,[0,1,2],2)}};}
 function gfxLe(){var g=+localStorage.getItem('vda_gfx')|0,x=null;try{x=gfxLimpa(JSON.parse(localStorage.getItem('vda_gfxc')));}catch(e){}
   if(g===3&&!MOB)g=5;if(g<0||g>7||g===7&&!x)g=0;return {g:g,x:x};}
-function gfxFraco(){var w=gpuFraca(GPUN);if(!w&&((navigator.deviceMemory||8)<=2||(navigator.hardwareConcurrency||8)<=2))w=1;if(!w&&MOB)w=1;return w;}
+function gfxFraco(){var w=gpuFraca(GPUN);if(!w&&((navigator.deviceMemory||8)<=2||(navigator.hardwareConcurrency||8)<=2||(navigator.hardwareConcurrency||8)<=4&&!gpuForte(GPUN)))w=1;/* 27/11 CEO 'o jogo ja comecar detectando que o PC e fraco': 4 nucleos sem placa forte nasce no PS2 (simulado: 30 fps liso) */if(!w&&MOB)w=1;return w;}
 /* Automatico: sem placa 2 -> PS1, fraca ou celular -> PS2, comum e forte -> PS4 */
 function gfxAuto(){var w=gfxFraco();return w>1?2:w?1:5;}
 /* === PRESETS fim === */
@@ -175,7 +175,7 @@ function qT(){if(MOB)return QBAT[2];var t=BAT?QBAT[BAT]:QT[QL];return GFX===7&&Q
 /* composer (MSAA, brilho, SAO, filtro final): niveis 1+ fora do batata; Personalizado liga quando pede algum desses */
 function qPost(){if(MOB)return false;if(!BAT&&QL>0)return true;if(GFX!==7||!QX)return false;var t=QX.t;return !!(t.ms||t.bloom||t.sao);}
 /* placa fraca conhecida: 2 = desenho por software (sem placa), 1 = integrada/antiga */
-function gpuFraca(n){n=String(n||'');return /swiftshader|llvmpipe|software|basic render/i.test(n)?2:/intel[^,]*\b(hd|uhd) graphics|\bgma\b|mali-(4|t)|adreno \(tm\) ([2-4]\d\d|50\d|51\d)|powervr|videocore|radeon (hd|r[57]) /i.test(n)?1:0;}
+function gpuFraca(n){n=String(n||'');return /swiftshader|llvmpipe|software|basic render/i.test(n)?2:/intel[^,]*\b(hd|uhd) graphics|\bgma\b|mali-(4|t)|adreno \(tm\) ([2-4]\d\d|50\d|51\d)|powervr|videocore|radeon (hd|r[2-7]) |geforce (gt|gts) ?\d{3,4}\b|geforce gtx [4-7][1-6]0\b|geforce [89]\d{3}\b/i.test(n)?1:0;}/* 27/11 simulado no Mac: GT 730 com CPU 4x lenta nascia no PS4 a 12-22 fps */
 /* CEO 24/11 "faz um 2K upscale, para outros PCs tambem": o jogo desenha no maximo 2560x1440 pixels (3,7 milhoes) e o navegador amplia para a tela.
    Tela 4K nativa custava 2,4x mais pixel por quadro e pesava a troca de grafico. HUD e texto sao HTML e seguem na resolucao da tela. ?nativo=1 desliga o teto; o preset PS5 Pro tambem (resolucao da tela). */
 var PX_TETO=2560*1440,PR_NATIVO=QS.get('nativo')==='1';
@@ -23654,7 +23654,7 @@ T('CEO 07/11 heroi: sem bigode (rosto liso), oculos escuro fixo e braco peludo n
     batSet(2);eq(BAT,2);eq(QL,0);eq(renderer.shadowMap.enabled,false);tr(PR<=.5,'resolucao '+PR);tr(camera.far<=220&&camera.far>=200,'horizonte '+camera.far);tr(skyMesh.geometry.parameters.radius*skyMesh.scale.x<camera.far,'ceu cortado pelo horizonte');tr(scene.fog.density>=d0,'neblina');tr(NPC_L2<=l2&&NPC_L2<=45,'gente longe '+NPC_L2);tr(VEG_MAX>0,'mato longe');tr(CAPIM.count>0&&CAPIM.count<=CAPIM.userData.n*.1,'PS1 nao conserva capim reduzido');eq(scene.environment,null);tr(nl()<=1,'luz pontual acesa no batata '+nl());tr(LANT.luz.visible,'lanterna do bueiro apagou');render(.016,1);galpaoVisibilidade();tr(nl()<=1,'galpao reacendeu luz no batata '+nl());
     batSet(1);eq(BAT,1);tr(PR<=.75&&PR>.5,'batata 1 '+PR);tr(CAPIM.count>0,'capim perto sumiu no 1');eq(scene.environment,e0);tr(nl()<=1,'luz pontual no batata 1');render(.016,1);
     batSet(0);eq(BAT,0);eq(camera.far,f0);eq(scene.fog.density,d0);eq(NPC_L2,l2);eq(CAPIM_R,cr);eq(VEG_MAX,0);eq(scene.environment,e0);eq(nl(),n0);render(.016,1);
-    eq(gpuFraca('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)'),2);eq(gpuFraca('ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)'),1);eq(gpuFraca('ANGLE (Intel, Intel(R) HD Graphics 4000 Direct3D11 vs_5_0 ps_5_0, D3D11)'),1);eq(gpuFraca('Mali-T830'),1);
+    eq(gpuFraca('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)'),2);eq(gpuFraca('ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)'),1);eq(gpuFraca('ANGLE (Intel, Intel(R) HD Graphics 4000 Direct3D11 vs_5_0 ps_5_0, D3D11)'),1);eq(gpuFraca('Mali-T830'),1);eq(gpuFraca('ANGLE (NVIDIA, NVIDIA GeForce GT 730 Direct3D11 vs_5_0 ps_5_0, D3D11)'),1);eq(gpuFraca('NVIDIA GeForce GT 1030'),1);eq(gpuFraca('NVIDIA GeForce GTX 750 Ti'),1);eq(gpuFraca('ANGLE (AMD, AMD Radeon R7 200 Series Direct3D11)'),1);eq(gpuFraca('NVIDIA GeForce GTX 1060 6GB'),0);eq(gpuFraca('NVIDIA GeForce RTX 3050'),0);
     eq(gpuFraca('ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)'),0);eq(gpuFraca('ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)'),0);eq(gpuFraca('ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)'),0);eq(gpuFraca('Apple GPU'),0);eq(gpuFraca(''),0);
     }finally{batSet(b0);applyQ(q0);}});
   T('CEO 09/11 17h49 merchan: logo oficial no canto da tela inicial, no painel de objetivo e so nas cutscenes',function(){var of=$('s4pOf'),c=$('s4pCut'),b=document.body,cs=b.classList.contains('cs'),ce=b.classList.contains('cena');try{
